@@ -14,7 +14,7 @@ failed() { "${cmd[@]}" command --caller plugin --skill unity-cli-field-notes --p
 while [ "$SECONDS" -lt "$deadline" ]; do
   if [ "$(state)" = ready ]; then
     if failed; then echo "compilation failed: run console get --level error" >&2; exit 2; fi
-    case "$(recompile)" in completed|up_to_date) echo ready; exit 0 ;; esac
+    case "$(recompile)" in idle|completed|up_to_date) echo ready; exit 0 ;; esac
   fi
   sleep 4
 done

@@ -13,7 +13,7 @@ Agent skills for driving Unity from a terminal.
 - `references/corrections.md` — where the official skill was stale, with evidence, plus dead ends and open questions.
 - `scripts/wait-ready.sh` — wait for a ready Editor and a finished recompile; exits 2 on a compile failure.
 
-Tested on Unity CLI 1.0.0-beta.15, `com.unity.pipeline` 0.10.0-exp.1, Unity 7000.0.0a12, Linux (Hyprland). Other platforms are untested and flagged as such in the notes.
+Tested on Unity CLI 1.0.0-beta.15, `com.unity.pipeline` 0.10.0-exp.1 and 0.9.1-exp.1, Unity 7000.0.0a12, Linux (Hyprland). Other platforms are untested and flagged as such in the notes.
 
 ## Install
 
