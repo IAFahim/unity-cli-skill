@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# usage: unity-batch.sh <project> <op>...   op: compile | EditMode | PlayMode | method:Ns.Class.Method
-# env:   UNITY=<editor binary> (default: from ProjectVersion.txt)  OUT=<log dir> (default /tmp/unity-batch)  FILTER=<test filter>
 set -uo pipefail
-project="$(cd "${1:?project path}" && pwd)"; shift
-version="$(awk '/m_EditorVersion:/{print $2}' "$project/ProjectSettings/ProjectVersion.txt")"
-unity="${UNITY:-$HOME/Unity/Hub/Editor/$version/Editor/Unity}"
+[ "$#" -ge 2 ] || { echo "usage: unity-batch.sh <project> <compile|EditMode|PlayMode|method:Ns.Class.Method>..." >&2; exit 1; }
+project="$(cd "$1" && pwd)"; shift
+case "$(uname -s)" in MINGW* | MSYS* | CYGWIN*) hub="${PROGRAMFILES:-C:/Program Files}/Unity/Hub/Editor"; exe=Editor/Unity.exe ;; *) hub="$HOME/Unity/Hub/Editor"; exe=Editor/Unity ;; esac
+version="$(ls -1 "$hub" 2>/dev/null | sort -V | tail -n 1)"
+unity="${UNITY:-$hub/$version/$exe}"
 out="${OUT:-/tmp/unity-batch}"; mkdir -p "$out"
-[ -x "$unity" ] || { echo "no Unity $version at $unity; set UNITY" >&2; exit 1; }
+[ -x "$unity" ] || { echo "no Unity 7 editor at $unity; run: unity install 7 --yes --accept-eula" >&2; exit 1; }
 if pgrep -af 'Unity' | grep -F -- "$project" | grep -vq 'unity-batch'; then
   echo "an Editor already has $project open; use the live Editor or a different project" >&2; exit 1
 fi

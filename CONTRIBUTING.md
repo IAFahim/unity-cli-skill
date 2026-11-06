@@ -7,7 +7,7 @@ This repo grows from real sessions. Any agent that works on Unity is expected to
 When you solve a Unity problem, hit a gotcha, or find a note here wrong or missing:
 
 1. Write **one line** in the right section of `skills/unity-cli-field-notes/SKILL.md`. Say what happens, then what to do. Name the API, flag or file.
-2. Only verified facts: you saw it happen. Add the Unity version if it may be version-specific (`Unity 7000.0.0a12:`).
+2. Only verified facts: you saw it happen. State the editor build only if the behaviour differs between Unity 7 builds, and only for the newest one.
 3. Keep `SKILL.md` under about 120 lines. Longer material (recipes, evidence, tables) goes in `skills/unity-cli-field-notes/references/<topic>.md`, with a one-line pointer from `SKILL.md`.
 4. Fix or delete a wrong line rather than adding a contradicting one.
 5. Commit to `main` with a message saying what you learned, then push:

@@ -1,0 +1,8 @@
+# Unity ECS rules (owner, binding)
+
+1. Latest Entities on the newest Unity 7: `ISystem`, `IJobEntity`/`IJobChunk`, Burst, unmanaged data only. Never `SystemBase`, managed components, class-based systems or GameObject lookups in game or library code.
+2. The whole hot path of Tl and of every lib we use is unmanaged: no allocation, no managed references, Burst-compilable. Managed code is allowed only in editor tooling, authoring and bakers.
+3. If a task seems to need `SystemBase`, a managed type, a static or hard-coded id, or any hot-path workaround, Tl or the lib in use is missing something. Stop. Do not work around it. File an issue in that lib's repo with `gh issue create` (minimal repro, the API that is missing) and tell the owner.
+4. Designers work in the Inspector. References and values are set by drag and drop on authoring components and ScriptableObjects, never looked up by name in code. `AssetDatabase.Load*`, `Resources.Load`, Find-by-name and string paths are forbidden in runtime and authoring flow; they are allowed only in tests and in editor-only tooling that is not designer workflow. A designer never edits code or types names to wire things.
+5. Unity-serialized files (`.asset`, `.unity`, `.prefab`, `.mat`, `.meta`, ProjectSettings) are produced by Unity, never written by hand.
+6. A project that does Unity work keeps a "Start here" in its `AGENTS.md` and `CLAUDE.md` pointing at this skill and repeating these rules.

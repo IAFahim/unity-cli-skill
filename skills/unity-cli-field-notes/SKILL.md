@@ -1,27 +1,26 @@
 ---
 name: unity-cli-field-notes
-description: Field-tested rules for AI agents working on Unity projects from a terminal - pick batch mode or the live Editor, run tests and builds headless with one script, reuse one scratch project, clean up disk, avoid false greens, and the ECS/baking facts agents get wrong. Use before compiling, testing, building or probing any Unity project, with the official unity-cli skill for live-Editor commands. Verified on Unity 7000.0.0a12 (Linux) and 7000.0.0a16 (Windows 11), Entities 6.7.0 and 7.0.0, Unity CLI 1.0.0-beta.13 to 15.
+description: Field-tested rules for AI agents working on Unity projects from a terminal - pick batch mode or the live Editor, run tests and builds headless with one script, reuse one scratch project, clean up disk, avoid false greens, and the ECS/baking facts agents get wrong. Use before compiling, testing, building or probing any Unity project, with the official unity-cli skill for live-Editor commands. Verified on the newest Unity 7 editor (Linux and Windows 11), Entities 6.7.0 and 7.0.0, Unity CLI 1.0.0-beta.13 to 15.
 ---
 
 # Unity field notes for agents
 
 Read once, top to bottom. Every line cost someone hours.
 
-## 0. Give back (every agent, every time)
+## Owner rules (every agent, every brief starts with rule 1)
 
-- **You learned or solved something about Unity, the CLI, ECS or its tooling?** Add one verified line to the right section here and push to `main` before you finish. Find the repo with `git -C "$(dirname "$(readlink -f <this SKILL.md>)")" rev-parse --show-toplevel`, or clone `IAFahim/unity-cli-skill`. Rules: `CONTRIBUTING.md`.
-- **Stuck after two honest attempts?** Don't guess a third time: `scripts/ask.sh "<question>" body.md` files a `question` issue (versions, minimal repro, exact error, what you tried). Stronger models answer those and fold the answers back in here.
-- The repo is public: no secrets, private code, customer names or personal paths.
-
-## 0b. Workflow (mandatory, it saves tokens)
-
-1. **Finish locally first.** Implement everything the task needs, run the full local Unity tests (section 2), and only then push and wait for CI. CI is the last check, never the debugger, and not the priority: do not work on CI or runner setup unless the owner asks, solve the current local task only.
-2. **Right-size the model.** Hard work goes to the strongest model: performance and benchmark analysis, diagnosing a failure whose cause is unknown, ECS/Burst/job design, anything a plan calls a gate. Mechanical work goes to a smaller or cheaper one: porting scripts between OSes, CI and workflow wiring, adding tests, restacking branches, doc and skill updates. Do not spend the strong model on mechanical work, and do not give the small one a gate to judge.
-3. **One brief per agent, no overlap.** Each agent owns different files and its own branch or worktree. Name the files it must not touch. Every brief carries: the goal and the "done" check, the exact tools and paths on this machine, the issue numbers to read, and the report format (short, numbers and commit hashes, not logs).
-4. **One Unity at a time per machine.** Two batch Editors at once make every benchmark noise and fight over CPU. Take a lock (create a directory such as `_work/unity.lock`; it fails if held) before any Unity process and remove it the moment that process exits.
-5. **Look it up before asking or guessing.** Read this file and the linked issues first. Many failures here are already solved (for example the 48 B allocation test, section 4).
-6. **Report short.** Final reports give: what works (commands), counts, commit hashes, what is not verified, what the owner must decide. No pasted logs.
-7. **Do not push, comment or merge** unless the owner asked in this task. Commit on a local branch and say so.
+1. **Before any work** pull this repo (`git -C <clone of IAFahim/unity-cli-skill> pull --ff-only`, clone it if missing; see `references/new-pc-setup.md`) and read this file. **Before you finish**, push what you learned back to `main` here (one verified line in the right section; `CONTRIBUTING.md`).
+2. **Newest Unity 7 editor only.** Install a newer one by name with the CLI (`unity install 7 --yes --accept-eula`); never test, pin or mention older versions. Scripts pick the newest installed editor.
+3. **Finish and test locally first.** CI is not a priority; do not work on CI or runners unless asked.
+4. **Direct pushes to `main` are authorized** in IAFahim repos (`git pull --rebase origin main`, `git push origin HEAD:main`, never `--force`).
+5. **Manage, delegate, right-size**: strongest model for performance and diagnosis, a small one for mechanical work. One brief per agent with file ownership, own worktree. Detail: `references/workflow.md`.
+6. **One Unity process at a time**: take the lock directory (`mkdir _work/unity.lock` fails if held), remove it when Unity exits.
+7. **Short reports** (commands, counts, shas, what is unverified). **No code comments** in these repos.
+8. **Never hand-write or hand-edit Unity-serialized files** (`.asset`, `.unity`, `.prefab`, `.mat`, `.meta`, ProjectSettings YAML): it silently corrupts references (`fileID: 0`) and causes slow reimport loops. Create them through Unity: an editor script in the scratch project's `Assets/Editor` (never the package) run with `-batchmode -nographics -quit -executeMethod`, or a headless Editor driven by `unity command eval` (section 7).
+9. **Unity ECS: `ISystem`, `IJobEntity`/`IJobChunk`, Burst, unmanaged data only.** Never `SystemBase`, managed components, GameObject lookups or other managed or hard-coded workarounds. The whole Tl hot path and every lib we use is unmanaged; managed code only in editor tooling, authoring and bakers. Needing a workaround means Tl or the lib lacks something: stop, `gh issue create` in that repo (minimal repro, missing API), tell the owner. Detail: `references/unity-ecs-rules.md`.
+10. **Designers wire references in the Inspector** (drag and drop on authoring components and ScriptableObjects). Never by name or path in runtime or authoring flow: no `AssetDatabase.Load*`, `Resources.Load`, Find-by-name. Only tests and editor-only tooling may.
+11. **Any Unity task**: make sure the project's own `AGENTS.md`/`CLAUDE.md` has a "Start here" pointing to this skill plus these hard rules; add it if missing, commit, push.
+12. Stuck after two honest attempts: `scripts/ask.sh "<question>" body.md` files a `question` issue (versions, repro, exact error, what you tried). The repo is public: no secrets or personal paths.
 
 ## 1. First minute: look before you launch
 
@@ -31,15 +30,15 @@ ls <project>/Temp/UnityLockfile 2>/dev/null                 # exists = that proj
 ```
 
 - **One Editor per project path, ever.** A second launch on the same path aborts ("another Unity instance is running"). Never kill an Editor you did not start; it is the person's.
-- **Never open an interactive (windowed) Editor to compile or test.** You cannot see it, it waits for focus, and you will wait for hours. Use batch mode (section 2).
-- Use the live Editor (official `unity-cli` skill, `unity command ...`) only when the person has it open and the task is about that Editor: its scene, its Inspector, Play mode they watch.
+- **Never open a windowed Editor yourself.** You cannot see it and it waits for focus. Run headless: batch mode (section 2), or a resident `-batchmode` Editor you drive with the CLI (section 7).
+- Drive an Editor the person already has open (`unity command ...`) only when the task is about that Editor: its scene, its Inspector, Play mode they watch.
 
 ## 2. Batch mode: compile, test, build, run code
 
 `scripts/unity-batch.sh <project> <op>...` wraps this and prints one line per op: `exit errorCS passed/failed`.
 
 ```bash
-U=~/Unity/Hub/Editor/<version>/Editor/Unity
+U=<newest ~/Unity/Hub/Editor/*/Editor/Unity>
 $U -batchmode -nographics -projectPath /abs/p -runTests -testPlatform EditMode -testResults /abs/r.xml -logFile /abs/r.log   # NO -quit with -runTests
 $U -batchmode -nographics -quit -projectPath /abs/p -executeMethod Ns.Class.Method -logFile /abs/m.log                     # -quit for executeMethod
 $U -batchmode -nographics -quit -projectPath /abs/p -logFile /abs/c.log                                                  # compile only
@@ -51,21 +50,9 @@ $U -batchmode -nographics -quit -projectPath /abs/p -logFile /abs/c.log         
 - First import of a fresh project takes minutes; later runs take ~1 min. Run long ops in the background and do other work; don't poll in a loop.
 - PlayMode tests run in the same batch Editor. Frames are ~1 ms there: **wait on wall-clock time** (`Time.realtimeSinceStartup`), never on a frame count, for subscene streaming or FixedStep ticks.
 - IL2CPP player: `BuildPipeline.BuildPlayer` from an `-executeMethod`, then run `./Game.x86_64 -batchmode -nographics -logFile /abs/p.log` and grep your own result line; call `Application.Quit(code)` in the player.
-- `unity test <project> --editor-path <Editor/Unity> --mode EditMode --filter Class.Method --output /abs/r.xml -- -logFile /abs/l.log` is the CLI form. Unity exit 2 (tests failed) returns CLI exit 8; CLI exit 6 "Test run did not complete" means Unity exited 1 before results, so `grep 'error CS'` the log. With a warm `Library/`, `--filter` reruns one test in about a minute. Unity 7000.0.0a12 ran a project pinned to 6000.7.0a6 this way.
+- CLI form: `unity test <project> --editor-path <Editor/Unity> --mode EditMode --filter Class.Method --output /abs/r.xml -- -logFile /abs/l.log` (exit codes in `references/windows-and-ci.md`).
 
-### CI on a self-hosted runner
-
-- A runner started from a desktop session has a minimal `PATH` (no `~/.local/bin`), so `unity` fails with exit 127. Resolve the CLI explicitly (env override, then `PATH`, then its install dir) and pass `--editor-path`.
-- Never hardcode an editor version in a CI script; the path rots when editors are swapped. Pick the project's pinned editor if installed, else the newest. The editor bundles Mono at `<Editor>/Data/MonoBleedingEdge/bin/mono` (6.13 on 7000.0.0a12), which runs `dotnet build` netstandard2.1 dlls, so CI needs no system Mono.
-- The runner reuses one workspace: the next queued job overwrites `-logFile` and results files while you read them. Compare timestamps to your job's, or `gh run download` the artifact of your exact run.
-
-### Windows and Unity 7000.0.0a16 (verified)
-
-- Run shell scripts through Git Bash (`& "C:\Program Files\Git\bin\bash.exe" script.sh`); `bash` is not on the PowerShell PATH. Convert paths with `cygpath -m` before giving them to Unity or a manifest `file:` entry. `python3` is a Windows Store stub: use `python`, or parse XML with sed.
-- Git Bash with autocrlf gives CRLF working trees. Scripts still run; compare files with `diff --strip-trailing-cr`.
-- a16 ships built-in Entities 7.0.0, Collections 7.0.0, Burst 2.0.0, test-framework 1.9.0 and performance 7.0.0; the older manifest pins are overridden. Burst 2.0 turns some old patterns into errors (BC1064).
-- `Baker.GetComponents<T>()` (array overload) throws "Unknown Type" for a `MonoBehaviour` not registered with the TypeManager; the `List<T>` overload works.
-- A fresh project plus the first EditMode run takes a few minutes on a 6-core machine.
+Windows, CI and runner notes: `references/windows-and-ci.md`.
 
 ## 3. One scratch project, reused, cleaned
 
@@ -84,8 +71,7 @@ $U -batchmode -nographics -quit -projectPath /abs/p -logFile /abs/c.log         
 - **Hand-built worlds prove little**: a test that builds a `World` and calls `system.Update()` by hand skips auto-created systems, group order and singletons. Prove the default world at least once (a PlayMode test that loads a scene with a SubScene).
 - **Ask the Editor, not the YAML**: inherited prefab components and overrides are invisible in files. Cross-prefab references serialize to `{fileID: 0}` without a warning.
 - Never delete scene or prefab content to silence an error.
-- Unity 7000.0.0a12: the editor runs CoreCLR (NUnit XML `clr-version` 10.0.x) and `GC.GetAllocatedBytesForCurrentThread()` is exact, so `Assert.AreEqual(0, GC.GetAllocatedBytesForCurrentThread()-before)` reads 48 B even for allocation-free code (it boxes its arguments before the second read; `Assert.That(.., Is.EqualTo(0))` reads 24). Compute the delta into a local first, then assert.
-- Unity 7000.0.0a16 gives the same 48 B: probe loop reads 48 B with the inline form, 0 B with the delta stored in a local first.
+- Unity 7: the editor runs CoreCLR (NUnit XML `clr-version` 10.0.x) and `GC.GetAllocatedBytesForCurrentThread()` is exact, so `Assert.AreEqual(0, GC.GetAllocatedBytesForCurrentThread()-before)` reads 48 B even for allocation-free code (it boxes its arguments before the second read). Compute the delta into a local first, then assert: that reads 0 B.
 - `[Licensing::Client] Error: HandshakeResponse` and `Failed to handshake to channel` appear in the Editor log of passing batch runs too (it then connects to its own licensing client). Judge by the NUnit XML counts and the exit code, not by those lines.
 
 ## 5. ECS and baking facts agents get wrong
@@ -102,26 +88,12 @@ $U -batchmode -nographics -quit -projectPath /abs/p -logFile /abs/c.log         
 - Inside a namespace like `Tl.Unity`, the name `Unity.X` binds to `Tl.Unity.X`. Write `global::Unity.Entities...` (source generators hit this too).
 - Unity 7 analyzers want cleanup semantics on statics (UAL0010/UAL0013). With domain reload off, statics survive between Play sessions: reset or dispose them in `[RuntimeInitializeOnLoadMethod(SubsystemRegistration)]`, mark the type `[NoAutoStaticsCleanup]` under `#if UNITY_7000_0_OR_NEWER`, and silence the analyzers only for vendored pure-.NET code via its `csc.rsp` (`-nowarn:`).
 
-### Baking and editor gotchas
-
-- A baking system sees every entity on every incremental bake. Data that only the baking system should see per baker run belongs in `[TemporaryBakingType]` (it exists only in the pass where that baker ran). Its query needs `IncludePrefab | IncludeDisabledEntities`, or prefabs and inactive GameObjects skip it.
-- A baker that reads a file must `DependsOn(AssetDatabase.LoadAssetAtPath<Object>(path))`, or editing the file never rebakes.
-- Generated system queries usually require **every** column of the system. Validate an entity against the query, not against what one feature uses.
-- Change filters: `chunk.DidChange(ref handle, LastSystemVersion)`, checked **before** taking a read-write accessor (that marks the chunk changed). The system's own writes don't retrigger it.
-- `World.All` includes the Editor's conversion, shadow and staging worlds. Skip `WorldFlags.Conversion | Shadow | Staging` in tools.
-- Editor hooks: never call `AssetDatabase.Refresh` inside `OnPostprocessAllAssets`; defer with `EditorApplication.delayCall` (which never fires in batch mode). `[InitializeOnLoad]` also runs in asset import workers, so guard with `AssetDatabase.IsAssetImportWorkerProcess()`.
-- External processes from the Editor: use `ProcessStartInfo.ArgumentList`, not a hand-quoted string. Read stderr asynchronously while reading stdout, and `WaitForExit(timeout)`. Otherwise a chatty or hung tool freezes the Editor.
-- Benchmarks in batch mode: the first run in a fresh Editor is cold (2-3x slower). Run twice, take the later run or a median of several, and treat ±0.5 ns/entity as noise unless repeated.
-- Editor Burst safety checks dominate idle-row benchmarks (a16: B 1.9 ns with them, 1.3-1.4 without). A job with many type handles pays about 54 ns per chunk in safety checking, so keep rarely used handles out of it. Judge a Unity gate against the .NET number measured on the same machine that day, not a number from another machine.
-- A disturbed run shows in the empty-world step time (13.9 µs against a normal 4.7-9.4): discard runs where it jumps.
+More baking, editor and benchmark gotchas: `references/ecs-baking-gotchas.md`.
 
 ## 6. Small tools that save hours
 
-- A .NET tool that reflects over a Unity-compiled dll needs its references next to it. Copy `Library/ScriptAssemblies/*.dll` and `<Editor>/Data/Managed/UnityEngine/*.dll` into one folder with the dll, then load from there.
 - `unity-cli exec` (if used) caches compiled payloads: keep each payload short and check the output is yours.
 - Read `Packages/manifest.json` and asmdef references before guessing a type's assembly. If a guessed API fails to compile once, open the source or compile a probe; don't guess twice.
-- Test asmdefs compile against a netstandard profile: `MethodImplOptions.AggressiveOptimization` (CS0117) and `System.Runtime.JitInfo` (CS0234) are missing there. Use `(MethodImplOptions)512`, and reflect `JitInfo.GetCompiledMethodCount` off `typeof(object).Assembly` (Unity 7000.0.0a12 has it at runtime).
-- Unity 7000.0.0a12: `DOTNET_*` runtime knobs such as `DOTNET_TieredCompilation=0` reach the editor (JIT method counts changed), so JIT-behavior experiments need no code change.
 
 ## 7. Live Editor (official CLI), condensed
 
@@ -129,6 +101,7 @@ $U -batchmode -nographics -quit -projectPath /abs/p -logFile /abs/c.log         
 - Call: `unity --no-banner command --caller plugin --skill <skill> <group> <verb> --flag v`; discover with `unity command` and `unity command <group>`. Use `--result-only` for JSON.
 - Recompiles drop the connection mid-call (`Invalid response format`, `No Pipeline instance`). Verify the effect, wait with `scripts/wait-ready.sh` (exit 2 = compile failure), retry only if it did not apply. Add packages one at a time.
 - `script eval --code '...; return x;'` with fully qualified names; `script eval_file --file f.cs` for longer probes.
+- Headless, from the CLI docs (not yet verified on this PC): `unity pipeline install --project-path <p>`, then start the editor binary with `-batchmode -nographics -projectPath <p>` and no `-quit`, then `unity command eval "<C#>" --project-path <p>`. `unity status` does not list a batch editor; use `unity list --project-path <p>` to test reachability.
 - Details and evidence: `references/corrections.md`.
 
 ## Done means

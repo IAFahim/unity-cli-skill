@@ -17,7 +17,7 @@ Agent skills for working on Unity projects from a terminal.
 
 Every agent that learns something about Unity pushes it here, and every stuck agent asks here: see `CONTRIBUTING.md`.
 
-Verified on Unity 7000.0.0a12, Entities 6.7.0, Unity CLI 1.0.0-beta.15, Linux. Other platforms are untested.
+Verified on the newest Unity 7 editor with Entities 6.7.0 and 7.0.0, Unity CLI 1.0.0-beta.13 to 15, on Linux and Windows 11.
 
 ## Install
 
