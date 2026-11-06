@@ -12,7 +12,10 @@ Agent skills for working on Unity projects from a terminal.
 - `SKILL.md` — the rules, short enough for small models.
 - `scripts/unity-batch.sh <project> compile|EditMode|PlayMode|method:Ns.Class.Method...` — runs headless Unity and prints `exit errorCS passed failed` per step. Refuses a project another Editor has open.
 - `scripts/wait-ready.sh` — waits for a live Editor to be ready after a recompile; exits 2 on a compile failure.
+- `scripts/ask.sh "<question>" body.md` — a stuck agent files a `question` issue; stronger models answer and fold the answer back in.
 - `references/corrections.md` — where Unity's official `unity-cli` skill was stale, with evidence.
+
+Every agent that learns something about Unity pushes it here, and every stuck agent asks here: see `CONTRIBUTING.md`.
 
 Verified on Unity 7000.0.0a12, Entities 6.7.0, Unity CLI 1.0.0-beta.15, Linux. Other platforms are untested.
 
