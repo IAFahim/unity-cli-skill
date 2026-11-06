@@ -68,6 +68,17 @@ $U -batchmode -nographics -quit -projectPath /abs/p -logFile /abs/c.log         
 - Inside a namespace like `Tl.Unity`, the name `Unity.X` binds to `Tl.Unity.X`. Write `global::Unity.Entities...` (source generators hit this too).
 - Unity 7 analyzers want cleanup semantics on statics (UAL0010/UAL0013). With domain reload off, statics survive between Play sessions: reset or dispose them in `[RuntimeInitializeOnLoadMethod(SubsystemRegistration)]`, mark the type `[NoAutoStaticsCleanup]` under `#if UNITY_7000_0_OR_NEWER`, and silence the analyzers only for vendored pure-.NET code via its `csc.rsp` (`-nowarn:`).
 
+### Baking and editor gotchas
+
+- A baking system sees every entity on every incremental bake. Data that only the baking system should see per baker run belongs in `[TemporaryBakingType]` (it exists only in the pass where that baker ran). Its query needs `IncludePrefab | IncludeDisabledEntities`, or prefabs and inactive GameObjects skip it.
+- A baker that reads a file must `DependsOn(AssetDatabase.LoadAssetAtPath<Object>(path))`, or editing the file never rebakes.
+- Generated system queries usually require **every** column of the system. Validate an entity against the query, not against what one feature uses.
+- Change filters: `chunk.DidChange(ref handle, LastSystemVersion)`, checked **before** taking a read-write accessor (that marks the chunk changed). The system's own writes don't retrigger it.
+- `World.All` includes the Editor's conversion, shadow and staging worlds. Skip `WorldFlags.Conversion | Shadow | Staging` in tools.
+- Editor hooks: never call `AssetDatabase.Refresh` inside `OnPostprocessAllAssets`; defer with `EditorApplication.delayCall` (which never fires in batch mode). `[InitializeOnLoad]` also runs in asset import workers, so guard with `AssetDatabase.IsAssetImportWorkerProcess()`.
+- External processes from the Editor: use `ProcessStartInfo.ArgumentList`, not a hand-quoted string. Read stderr asynchronously while reading stdout, and `WaitForExit(timeout)`. Otherwise a chatty or hung tool freezes the Editor.
+- Benchmarks in batch mode: the first run in a fresh Editor is cold (2-3x slower). Run twice, take the later run or a median of several, and treat ±0.5 ns/entity as noise unless repeated.
+
 ## 6. Small tools that save hours
 
 - A .NET tool that reflects over a Unity-compiled dll needs its references next to it. Copy `Library/ScriptAssemblies/*.dll` and `<Editor>/Data/Managed/UnityEngine/*.dll` into one folder with the dll, then load from there.
