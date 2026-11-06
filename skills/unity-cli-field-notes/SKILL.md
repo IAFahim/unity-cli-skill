@@ -88,6 +88,8 @@ Windows, CI and runner notes: `references/windows-and-ci.md`.
 - Inside a namespace like `Tl.Unity`, the name `Unity.X` binds to `Tl.Unity.X`. Write `global::Unity.Entities...` (source generators hit this too).
 - Unity 7 analyzers want cleanup semantics on statics (UAL0010/UAL0013). With domain reload off, statics survive between Play sessions: reset or dispose them in `[RuntimeInitializeOnLoadMethod(SubsystemRegistration)]`, mark the type `[NoAutoStaticsCleanup]` under `#if UNITY_7000_0_OR_NEWER`, and silence the analyzers only for vendored pure-.NET code via its `csc.rsp` (`-nowarn:`).
 
+- Entities 7.0.0 API gaps: `EntityManager` has no `GetComponentLookup`/`GetBufferLookup` (take them from `ref World.Unmanaged.ResolveSystemStateRef(handle)`); `ArchetypeChunk` has `GetEnableableBits` but no public setter (copy a mask per entity through `EnabledMask[i]`); an `IJobParallelForDefer` job struct must itself hold the deferred `NativeList` (as `AsDeferredJobArray()`) or it throws at schedule time.
+
 More baking, editor and benchmark gotchas: `references/ecs-baking-gotchas.md`.
 
 ## 6. Small tools that save hours
