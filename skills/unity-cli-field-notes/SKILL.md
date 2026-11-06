@@ -52,7 +52,7 @@ $U -batchmode -nographics -quit -projectPath /abs/p -logFile /abs/c.log         
 - IL2CPP player: `BuildPipeline.BuildPlayer` from an `-executeMethod`, then run `./Game.x86_64 -batchmode -nographics -logFile /abs/p.log` and grep your own result line; call `Application.Quit(code)` in the player.
 - CLI form: `unity test <project> --editor-path <Editor/Unity> --mode EditMode --filter Class.Method --output /abs/r.xml -- -logFile /abs/l.log` (exit codes in `references/windows-and-ci.md`).
 
-Windows, CI and runner notes: `references/windows-and-ci.md`.
+Windows, CI and runner notes: `references/windows-and-ci.md`. How releases publish: `references/release.md`.
 
 ## 3. One scratch project, reused, cleaned
 
