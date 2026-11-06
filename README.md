@@ -1,23 +1,24 @@
 # unity-cli-skill
 
-Agent skills for driving Unity from a terminal.
+Agent skills for working on Unity projects from a terminal.
 
-| Skill | Tool it targets | Where |
+| Skill | For | Where |
 |---|---|---|
-| `unity-dots` | the `unity-cli exec` / `unity-cli list` tool, with BovineLabs DOTS rules | `SKILL.md`, `ScriptStructure.md` (repo root) |
-| `unity-cli-field-notes` | Unity's official `unity` CLI (`unity status`, `unity pipeline`, `unity command`) and its Pipeline package | `skills/unity-cli-field-notes/` |
+| `unity-cli-field-notes` | every agent, first: batch mode vs live Editor, one-command test runs, one scratch project, disk cleanup, false greens, ECS/baking facts, the official `unity` CLI | `skills/unity-cli-field-notes/` |
+| `unity-dots` | DOTS work through the `unity-cli exec` tool, with BovineLabs-style rules and a 6-assembly layout | `SKILL.md`, `ScriptStructure.md` (repo root) |
 
-`unity-cli-field-notes` is a companion to Unity's own `unity-cli` skill, not a fork: it holds only observations from a real session and quotes none of the official text.
+`unity-cli-field-notes`:
 
-- `SKILL.md` — connect sequence, command shapes, domain-reload traps, scene/SubScene setup, ECS probing.
-- `references/corrections.md` — where the official skill was stale, with evidence, plus dead ends and open questions.
-- `scripts/wait-ready.sh` — wait for a ready Editor and a finished recompile; exits 2 on a compile failure.
+- `SKILL.md` — the rules, short enough for small models.
+- `scripts/unity-batch.sh <project> compile|EditMode|PlayMode|method:Ns.Class.Method...` — runs headless Unity and prints `exit errorCS passed failed` per step. Refuses a project another Editor has open.
+- `scripts/wait-ready.sh` — waits for a live Editor to be ready after a recompile; exits 2 on a compile failure.
+- `references/corrections.md` — where Unity's official `unity-cli` skill was stale, with evidence.
 
-Tested on Unity CLI 1.0.0-beta.15, `com.unity.pipeline` 0.10.0-exp.1, Unity 7000.0.0a12, Linux (Hyprland). Other platforms are untested and flagged as such in the notes.
+Verified on Unity 7000.0.0a12, Entities 6.7.0, Unity CLI 1.0.0-beta.15, Linux. Other platforms are untested.
 
 ## Install
 
-Copy or symlink a skill folder into your agent's skills directory, for Claude Code:
+Symlink a skill folder into your agent's skills directory, for Claude Code:
 
 ```sh
 ln -s "$PWD/skills/unity-cli-field-notes" ~/.claude/skills/unity-cli-field-notes

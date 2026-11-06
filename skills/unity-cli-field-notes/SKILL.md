@@ -1,65 +1,83 @@
 ---
 name: unity-cli-field-notes
-description: Field-tested notes for driving a live, already-open Unity Editor from the Unity CLI (unity status / pipeline / command). Use alongside the official unity-cli skill when connecting to an Editor, adding the Pipeline package, waiting out domain reloads, setting up scenes and SubScenes, probing ECS worlds with script eval, or when a unity command fails with "No Pipeline instance" or "Invalid response format". Verified on Unity CLI 1.0.0-beta.15, com.unity.pipeline 0.10.0-exp.1, Unity 7000.0.0a12, Linux.
+description: Field-tested rules for AI agents working on Unity projects from a terminal - pick batch mode or the live Editor, run tests and builds headless with one script, reuse one scratch project, clean up disk, avoid false greens, and the ECS/baking facts agents get wrong. Use before compiling, testing, building or probing any Unity project, with the official unity-cli skill for live-Editor commands. Verified on Unity 7000.0.0a12, Entities 6.7.0, Unity CLI 1.0.0-beta.15, Linux.
 ---
 
-# Unity CLI field notes
+# Unity field notes for agents
 
-Companion to the official `unity-cli` skill, not a replacement. Everything here was observed on a real session; `references/corrections.md` lists where the official text was stale. Run `unity --version` first: names below are for 1.0.0-beta.15.
+Read once, top to bottom. Every line cost someone hours.
 
-## Connect (in this order)
+## 1. First minute: look before you launch
 
-1. `unity --no-banner status --json` — `data.instances` empty means no reachable Pipeline server.
-2. `unity --no-banner pipeline editors` — one row per Editor, with `hasPipelinePackage`, `serverReachable`, `safeMode`. There is no `pipeline list` in beta.15.
-3. No package: `unity pipeline install --project-path <p>`. It only edits `Packages/manifest.json`.
-4. **The Editor will not act on it until its window is focused.** An unfocused Editor stays idle for many minutes (log silent, `hasPipelinePackage=true`, `serverReachable=false`). Focus it (Hyprland: `hyprctl dispatch focuswindow address:<addr>`, found via `hyprctl clients -j` and the title `Unity - <project> - ...`; X11: `xdotool windowactivate`), then wait for state `ready`. Do not diagnose a crash or Safe Mode from the log alone — check `pgrep` and that the UPM server process is alive first.
-5. Use `scripts/wait-ready.sh` for every wait. It polls `status` until `ready` and `script recompile_status` until `completed`/`up_to_date`.
-
-`isRunning=true` with an empty `pid` and no process in `pgrep` means the Editor is gone (closed by the user). Don't relaunch it unasked.
-
-## Calling commands
-
-Always `unity --no-banner command --caller plugin --skill <skill-name> <group> <verb> --flag value`.
-
-- Names are `group verb`, dotted groups: `editor.playmode start`, `script eval`, `gameobject create_many`, `scene get_hierarchy`, `component set_field`, `package add`, `console get`, `capture game_view`. Discover with `unity command` (groups) then `unity command <group>` (verbs, flags). Bare `eval` / `editor_play` are not in the listing.
-- Output is a tab-separated row; the JSON result is the third field: `... | tail -1 | python3 -c "import sys,json;print(json.loads(sys.stdin.read().split('\t')[2]))"`.
-- Array flags take JSON: `--positions '[[-3,1,0],[-3,1,2]]'`. Object references take `--value '{"path":"Assets/Scenes/X.unity"}'`.
-- Run `console clear` before a step you want to judge by error count.
-
-## Domain reloads lie
-
-Anything that recompiles (`package add --wait`, `script recompile`, editing a `.cs`) can drop the connection mid-call:
-
-- Symptoms: `Invalid response format from Pipeline server`, or `No Pipeline instance found ... domain reload is in progress`, even though the operation worked.
-- Do: verify the effect (`grep Packages/manifest.json`, `script recompile_status`), run `wait-ready.sh`, retry only if it did not apply.
-- Add packages one at a time, waiting for ready between them. A second `package add` fired during the first's reload fails.
-- After a failed compile `recompile_status` did not return `completed` (it printed a value starting `c…`, truncated by the CLI), so a poll-for-completed loop only ends by timeout. Check `console status` -> `groundTruth.compilationFailed` instead, and read errors with `console get --tail 20 --level error`, deduped by message. `wait-ready.sh` exits 2 on a compile failure.
-
-## Scenes and components
-
-- `scene create --path X --additive true` makes the new scene active. New objects land in the active scene, so `scene set_active` back to the main scene before creating the host object. Read a non-active scene with `scene get_hierarchy --path X`. `scene save --path X` each scene you touched.
-- `component add --target <instanceId> --type Ns.Type` works with namespaced types, but the type must already be compiled.
-- `component add` serializes the compiled type's field defaults at add time. Changing a default in source afterwards does not update existing components; use `component set_field`.
-- SubScene host: `component add --type Unity.Scenes.SubScene` then `set_field --field _SceneAsset --value '{"path":"..."}'`.
-- Hand-editing `.unity` YAML worked once on an unfocused, clean Editor (it loaded without errors on focus). Treat that as luck; use the commands.
-
-## Probing at runtime
-
-`editor.playmode start`, wait 8–10 s (SubScene load and baking), then `script eval --file probe.cs` as many times as needed, then `editor.playmode stop`. `script eval` sees the project's own types and `Unity.Entities`, so an ECS probe is one file:
-
-```csharp
-var em = Unity.Entities.World.DefaultGameObjectInjectionWorld.EntityManager;
-var q = em.CreateEntityQuery(typeof(MyData));
-var a = q.ToComponentDataArray<MyData>(Unity.Collections.Allocator.Temp);
-"count=" + q.CalculateEntityCount() + " first=" + a[0].Value
+```bash
+pgrep -af '[U]nity/Hub/Editor|Editor/Unity' | cut -c1-200   # who is running, on which -projectPath
+ls <project>/Temp/UnityLockfile 2>/dev/null                 # exists = that project is open
 ```
 
-Compare against a closed-form expectation in the same eval and report the max error. `capture game_view --output-path <png> --width 960 --height 540` works in Play mode and the PNG can be read back.
+- **One Editor per project path, ever.** A second launch on the same path aborts ("another Unity instance is running"). Never kill an Editor you did not start; it is the person's.
+- **Never open an interactive (windowed) Editor to compile or test.** You cannot see it, it waits for focus, and you will wait for hours. Use batch mode (section 2).
+- Use the live Editor (official `unity-cli` skill, `unity command ...`) only when the person has it open and the task is about that Editor: its scene, its Inspector, Play mode they watch.
 
-## Entities Graphics note
+## 2. Batch mode: compile, test, build, run code
 
-After adding `com.unity.entities.graphics` 6.7.0 the console filled with `NullReferenceException` in `EntitiesGraphicsSystem.OnPerformCulling` (and earlier "Compute shader ... was not found!" assertions). Entities rendered correctly anyway. The compute shaders load fine once imported, so the stale object is the Editor-mode world created before they were. A forced reload did not clear it; an Editor restart is the untested remedy.
+`scripts/unity-batch.sh <project> <op>...` wraps this and prints one line per op: `exit errorCS passed/failed`.
 
-## A second Editor for verification
+```bash
+U=~/Unity/Hub/Editor/<version>/Editor/Unity
+$U -batchmode -nographics -projectPath /abs/p -runTests -testPlatform EditMode -testResults /abs/r.xml -logFile /abs/r.log   # NO -quit with -runTests
+$U -batchmode -nographics -quit -projectPath /abs/p -executeMethod Ns.Class.Method -logFile /abs/m.log                     # -quit for executeMethod
+$U -batchmode -nographics -quit -projectPath /abs/p -logFile /abs/c.log                                                  # compile only
+```
 
-If no Pipeline connection is possible, a headless Editor on a **copy** of the project (`Assets`, `Packages`, `ProjectSettings`, no `Library`) runs while the live one holds the lock: `Unity -batchmode -nographics -projectPath <copy> -executeMethod X.Run -logFile log` with no `-quit`, ending in `EditorApplication.Exit(code)`. First import takes minutes. Say so when you do it; `.meta` files it generates can be copied back. Never point it at the live project path.
+- Exit codes: 0 ok, 2 tests failed, 1 error (compile error, exception, license). Read them directly; **`| tail` eats the exit code.**
+- **Always absolute paths** for `-testResults` and `-logFile`. A relative `-testResults` is resolved against the project, writes elsewhere, and you read a stale XML.
+- Proof = `grep -c 'error CS' log` is 0 **and** the XML `<test-run total passed failed>` counts are what you expect. "exit 0" alone is not proof.
+- First import of a fresh project takes minutes; later runs take ~1 min. Run long ops in the background and do other work; don't poll in a loop.
+- PlayMode tests run in the same batch Editor. Frames are ~1 ms there: **wait on wall-clock time** (`Time.realtimeSinceStartup`), never on a frame count, for subscene streaming or FixedStep ticks.
+- IL2CPP player: `BuildPipeline.BuildPlayer` from an `-executeMethod`, then run `./Game.x86_64 -batchmode -nographics -logFile /abs/p.log` and grep your own result line; call `Application.Quit(code)` in the player.
+
+## 3. One scratch project, reused, cleaned
+
+- Make **one** test project per Unity version, and reuse it. Point it at the package you are changing with `"com.x": "file:/abs/path/to/checkout/com.x"` plus `"testables": ["com.x"]` in `Packages/manifest.json`. **Never copy the package** into the project: copies drift and you test old code.
+- Switch branches by repointing the `file:` path; the warm `Library/` makes the next run fast.
+- Scratch helper scripts go in the scratch project's `Assets/`, never in the package. Delete them when done.
+- **Clean up before you finish**: delete `Builds/`, scratch projects you created, stale copies, and IL2CPP output (`Library/Bee`, `Library/Il2cppBuildCache`). Check `df -h /tmp ~` first and last. A test project is ~3 GB; an IL2CPP build adds 1-2 GB.
+
+## 4. False greens (each one has fooled an agent)
+
+- **Stale domain**: one compile error anywhere keeps the old assemblies loaded, so old code runs and old test counts appear. Check `error CS` = 0 before trusting anything.
+- **Console is not the log**: `console get` can be empty while `Editor.log` (or your `-logFile`) has the errors. Read the log.
+- **Stale bakes**: subscenes serve old baked data. After changing a baker or authoring asset, force reimport (`AssetDatabase.ImportAsset(p, ForceUpdate | ForceSynchronousImport)`) and check one baked component exists in the live world.
+- **Hand-built worlds prove little**: a test that builds a `World` and calls `system.Update()` by hand skips auto-created systems, group order and singletons. Prove the default world at least once (a PlayMode test that loads a scene with a SubScene).
+- **Ask the Editor, not the YAML**: inherited prefab components and overrides are invisible in files. Cross-prefab references serialize to `{fileID: 0}` without a warning.
+- Never delete scene or prefab content to silence an error.
+
+## 5. ECS and baking facts agents get wrong
+
+- Every `SystemBase`/`ISystem` in every loaded assembly is **auto-created in the default world** unless `[DisableAutoCreation]`. A system that calls `GetSingleton<T>()` must `RequireForUpdate<T>()` in `OnCreate`, or it throws every frame once its query matches.
+- Broad queries catch your entities too. To exclude an **enableable** component use `Absent` (`WithAbsent<T>()`); `None` also matches entities where it is present but disabled.
+- Order your systems explicitly (`[UpdateInGroup]`, `[UpdateAfter]`); group membership is not order.
+- Authoring `MonoBehaviour`s must live in a **runtime** assembly (Editor-assembly scripts cannot be added to GameObjects). `Baker<T>` needs a reference to `Unity.Entities.Hybrid`. Bakers may live in Editor assemblies.
+- Folders ending in `~` (`Tools~`, `Samples~`, `Documentation~`) are **never compiled** by Unity.
+- Baker has only the generic `SetComponentEnabled<T>`; for runtime `ComponentType`s set enable bits in a `[WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]` system, which also sees every baker's output (good for validation).
+- `[BakingType]` components are stripped from the game world; runtime subscene entities have **no names** (`GetName` returns ""). Find entities by components, not names.
+- Subscene loading is asynchronous. Baking in an EditMode test without scenes: reflect `Unity.Entities.BakingUtility.BakeGameObjects(world, roots, settings)` (internal; `BakingSettings(flags, blobAssetStore)`).
+- On Unity 7, core Entities types (`EntityArchetype`, `EntityQuery`) live in the engine. Their source is not in the package cache, so check the API by compiling.
+
+## 6. Small tools that save hours
+
+- A .NET tool that reflects over a Unity-compiled dll needs its references next to it. Copy `Library/ScriptAssemblies/*.dll` and `<Editor>/Data/Managed/UnityEngine/*.dll` into one folder with the dll, then load from there.
+- `unity-cli exec` (if used) caches compiled payloads: keep each payload short and check the output is yours.
+- Read `Packages/manifest.json` and asmdef references before guessing a type's assembly. If a guessed API fails to compile once, open the source or compile a probe; don't guess twice.
+
+## 7. Live Editor (official CLI), condensed
+
+- Connect: `unity --no-banner status --json`, then `unity --no-banner pipeline editors`. No package: `unity pipeline install --project-path <p>`, then the **window must be focused** before it connects (Linux: minutes of silence otherwise).
+- Call: `unity --no-banner command --caller plugin --skill <skill> <group> <verb> --flag v`; discover with `unity command` and `unity command <group>`. Use `--result-only` for JSON.
+- Recompiles drop the connection mid-call (`Invalid response format`, `No Pipeline instance`). Verify the effect, wait with `scripts/wait-ready.sh` (exit 2 = compile failure), retry only if it did not apply. Add packages one at a time.
+- `script eval --code '...; return x;'` with fully qualified names; `script eval_file --file f.cs` for longer probes.
+- Details and evidence: `references/corrections.md`.
+
+## Done means
+
+You ran it, you read the counts, the person's own walk works (open the scene, press Play, see it), nothing of yours is left in their scenes or disk, and you said plainly what you did not verify.
