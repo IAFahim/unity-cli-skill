@@ -41,6 +41,13 @@ $U -batchmode -nographics -quit -projectPath /abs/p -logFile /abs/c.log         
 - First import of a fresh project takes minutes; later runs take ~1 min. Run long ops in the background and do other work; don't poll in a loop.
 - PlayMode tests run in the same batch Editor. Frames are ~1 ms there: **wait on wall-clock time** (`Time.realtimeSinceStartup`), never on a frame count, for subscene streaming or FixedStep ticks.
 - IL2CPP player: `BuildPipeline.BuildPlayer` from an `-executeMethod`, then run `./Game.x86_64 -batchmode -nographics -logFile /abs/p.log` and grep your own result line; call `Application.Quit(code)` in the player.
+- `unity test <project> --editor-path <Editor/Unity> --mode EditMode --filter Class.Method --output /abs/r.xml -- -logFile /abs/l.log` is the CLI form. Unity exit 2 (tests failed) returns CLI exit 8; CLI exit 6 "Test run did not complete" means Unity exited 1 before results, so `grep 'error CS'` the log. With a warm `Library/`, `--filter` reruns one test in about a minute. Unity 7000.0.0a12 ran a project pinned to 6000.7.0a6 this way.
+
+### CI on a self-hosted runner
+
+- A runner started from a desktop session has a minimal `PATH` (no `~/.local/bin`), so `unity` fails with exit 127. Resolve the CLI explicitly (env override, then `PATH`, then its install dir) and pass `--editor-path`.
+- Never hardcode an editor version in a CI script; the path rots when editors are swapped. Pick the project's pinned editor if installed, else the newest. The editor bundles Mono at `<Editor>/Data/MonoBleedingEdge/bin/mono` (6.13 on 7000.0.0a12), which runs `dotnet build` netstandard2.1 dlls, so CI needs no system Mono.
+- The runner reuses one workspace: the next queued job overwrites `-logFile` and results files while you read them. Compare timestamps to your job's, or `gh run download` the artifact of your exact run.
 
 ## 3. One scratch project, reused, cleaned
 
@@ -59,6 +66,8 @@ $U -batchmode -nographics -quit -projectPath /abs/p -logFile /abs/c.log         
 - **Hand-built worlds prove little**: a test that builds a `World` and calls `system.Update()` by hand skips auto-created systems, group order and singletons. Prove the default world at least once (a PlayMode test that loads a scene with a SubScene).
 - **Ask the Editor, not the YAML**: inherited prefab components and overrides are invisible in files. Cross-prefab references serialize to `{fileID: 0}` without a warning.
 - Never delete scene or prefab content to silence an error.
+- Unity 7000.0.0a12: the editor runs CoreCLR (NUnit XML `clr-version` 10.0.x) and `GC.GetAllocatedBytesForCurrentThread()` is exact, so `Assert.AreEqual(0, GC.GetAllocatedBytesForCurrentThread()-before)` reads 48 B even for allocation-free code (it boxes its arguments before the second read; `Assert.That(.., Is.EqualTo(0))` reads 24). Compute the delta into a local first, then assert.
+- `[Licensing::Client] Error: HandshakeResponse` and `Failed to handshake to channel` appear in the Editor log of passing batch runs too (it then connects to its own licensing client). Judge by the NUnit XML counts and the exit code, not by those lines.
 
 ## 5. ECS and baking facts agents get wrong
 
@@ -90,6 +99,8 @@ $U -batchmode -nographics -quit -projectPath /abs/p -logFile /abs/c.log         
 - A .NET tool that reflects over a Unity-compiled dll needs its references next to it. Copy `Library/ScriptAssemblies/*.dll` and `<Editor>/Data/Managed/UnityEngine/*.dll` into one folder with the dll, then load from there.
 - `unity-cli exec` (if used) caches compiled payloads: keep each payload short and check the output is yours.
 - Read `Packages/manifest.json` and asmdef references before guessing a type's assembly. If a guessed API fails to compile once, open the source or compile a probe; don't guess twice.
+- Test asmdefs compile against a netstandard profile: `MethodImplOptions.AggressiveOptimization` (CS0117) and `System.Runtime.JitInfo` (CS0234) are missing there. Use `(MethodImplOptions)512`, and reflect `JitInfo.GetCompiledMethodCount` off `typeof(object).Assembly` (Unity 7000.0.0a12 has it at runtime).
+- Unity 7000.0.0a12: `DOTNET_*` runtime knobs such as `DOTNET_TieredCompilation=0` reach the editor (JIT method counts changed), so JIT-behavior experiments need no code change.
 
 ## 7. Live Editor (official CLI), condensed
 
