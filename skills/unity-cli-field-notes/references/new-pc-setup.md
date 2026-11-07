@@ -9,3 +9,4 @@
 7. Submodules in a new worktree: `git submodule update --init --reference <main clone>/.git/modules/<path> <path>`, once per submodule, in the background.
 8. One Unity process at a time: `New-Item -ItemType Directory D:\GitHub\_work\unity.lock` (or `mkdir`) fails when held; wait 30 s and retry; remove it when Unity exits.
 9. Run `.sh` scripts on Windows with `& "C:\Program Files\Git\bin\bash.exe" script.sh`.
+10. New Unity project with Tl in one command: `bash eng/tl-init.sh <path>` from IAFahim/tl.unity (or `curl -fsSL https://raw.githubusercontent.com/IAFahim/tl.unity/main/eng/tl-init.sh | bash -s -- <path>`); it finds or installs Unity 7, builds tlb, adds the package and `Assets/Game/Game.asmdef`, and compiles.
