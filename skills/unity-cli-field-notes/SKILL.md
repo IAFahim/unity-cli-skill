@@ -60,6 +60,7 @@ Windows, CI and runner notes: `references/windows-and-ci.md`. How releases publi
 - Switch branches by repointing the `file:` path; the warm `Library/` makes the next run fast.
 - Scratch helper scripts go in the scratch project's `Assets/`, never in the package. Delete them when done.
 - **Test the package the way a user installs it**: a fresh project whose only dependency is the package. If it compiles only because something sits in your scratch `Assets/`, the package is broken. Ship what it needs, for example a vendored assembly with an asmdef and a sync script that has a `--check` mode.
+- A vendored dll's `--check` must not compare rebuilt bytes: the same sources give different bytes per SDK, OS and checkout line endings (`core.autocrlf`). Commit a stamp of the pinned submodule commit, a CR-stripped `git hash-object --stdin` hash of the sources and the dll hashes, and compare that.
 - A new git worktree has **empty submodules**: `git submodule update --init --reference <local clone> <path>`.
 - **Clean up before you finish**: delete `Builds/`, scratch projects you created, stale copies, and IL2CPP output (`Library/Bee`, `Library/Il2cppBuildCache`). Check `df -h /tmp ~` first and last. A test project is ~3 GB; an IL2CPP build adds 1-2 GB.
 
