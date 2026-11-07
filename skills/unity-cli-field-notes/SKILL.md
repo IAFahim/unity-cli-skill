@@ -114,6 +114,7 @@ More baking, editor and benchmark gotchas: `references/ecs-baking-gotchas.md`.
 - Recompiles drop the connection mid-call (`Invalid response format`, `No Pipeline instance`). Verify the effect, wait with `scripts/wait-ready.sh` (exit 2 = compile failure), retry only if it did not apply. Add packages one at a time.
 - `script eval --code '...; return x;'` with fully qualified names; `script eval_file --file f.cs` for longer probes.
 - Headless Editor to drive (verified): `unity pipeline install`, launch the editor with `-batchmode -nographics` and no `-quit`, then `unity command eval ... --project-path <p>`; commands in `references/headless-assets.md`.
+- Simulate editor clicks without a window: against a resident `-batchmode` Editor, `unity command eval --project-path <p> --result-only "$(cat probe.cs)"` runs multi-statement C#; `Undo.IncrementCurrentGroup()` around a change then `Undo.PerformUndo()/PerformRedo()` reproduces Ctrl+Z/Ctrl+Y, and Timeline's internal `TrackExtensions.Duplicate` (reflection, args `track,null,null,null`) is Ctrl+D. Ready check is `unity status --json` (`state: ready`); this CLI has no `unity list`.
 - Details and evidence: `references/corrections.md`.
 
 ## Done means
