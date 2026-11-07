@@ -21,6 +21,7 @@ Read once, top to bottom. Every line cost someone hours.
 10. **Designers wire references in the Inspector** (drag and drop on authoring components and ScriptableObjects). Never by name or path in runtime or authoring flow: no `AssetDatabase.Load*`, `Resources.Load`, Find-by-name. Only tests and editor-only tooling may.
 11. **Any Unity task**: make sure the project's own `AGENTS.md`/`CLAUDE.md` has a "Start here" pointing to this skill plus these hard rules; add it if missing, commit, push.
 12. Stuck after two honest attempts: `scripts/ask.sh "<question>" body.md` files a `question` issue (versions, repro, exact error, what you tried). The repo is public: no secrets or personal paths.
+13. **Cross-machine work goes through GitHub issues, never the owner as relay.** Before starting, check open issues labelled with your OS (`gh issue list --repo IAFahim/<repo> --label <windows|linux>`). On a cross-machine problem open or comment on one with repro, expected vs actual, logs and the command that proves it; claim by commenting; post root cause and commit shas when fixed; the other machine verifies and comments the result. Example: IAFahim/tl#576 (Linux demo step 10).
 
 ## 1. First minute: look before you launch
 
