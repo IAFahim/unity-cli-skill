@@ -7,3 +7,4 @@
 5. Unity-serialized files (`.asset`, `.unity`, `.prefab`, `.mat`, `.meta`, ProjectSettings) are produced by Unity, never written by hand.
 6. A project that does Unity work keeps a "Start here" in its `AGENTS.md` and `CLAUDE.md` pointing at this skill and repeating these rules.
 - Burst in the Windows editor cannot call `Marshal.AllocHGlobal`/`NativeMemory` ("Unable to load plugin kernel32.dll", then a silent managed fallback; check with a `[BurstDiscard]` side effect). Burst matches `[BurstDiscard]` by name, so an engine-free lib can declare an internal `Unity.Burst.BurstDiscardAttribute` to keep an allocation path out of Burst.
+- `state.RequireForUpdate(query)` on a query with an enableable tag still runs the system once every entity has the tag disabled (Entities 6.7.0, Unity 7: a register system ran every frame, 264 B/frame). Return early on `query.IsEmpty` in `OnUpdate`; that respects enable bits and keeps the warm frame at 0 B.

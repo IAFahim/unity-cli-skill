@@ -84,6 +84,7 @@ Windows, CI and runner notes: `references/windows-and-ci.md`. How releases publi
 - Broad queries catch your entities too. To exclude an **enableable** component use `Absent` (`WithAbsent<T>()`); `None` also matches entities where it is present but disabled.
 - Order your systems explicitly (`[UpdateInGroup]`, `[UpdateAfter]`); group membership is not order.
 - Authoring `MonoBehaviour`s must live in a **runtime** assembly (Editor-assembly scripts cannot be added to GameObjects). `Baker<T>` needs a reference to `Unity.Entities.Hybrid`. Bakers may live in Editor assemblies.
+- Unity's standard `.gitignore` line `**/Library/` also ignores a package folder named `Library` (for example `Runtime/Library/`); add `!/<path>/Library/` or new files never reach git.
 - Folders ending in `~` (`Tools~`, `Samples~`, `Documentation~`) are **never compiled** by Unity.
 - Baker has only the generic `SetComponentEnabled<T>`; for runtime `ComponentType`s set enable bits in a `[WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]` system, which also sees every baker's output (good for validation).
 - `[BakingType]` components are stripped from the game world; runtime subscene entities have **no names** (`GetName` returns ""). Find entities by components, not names.
