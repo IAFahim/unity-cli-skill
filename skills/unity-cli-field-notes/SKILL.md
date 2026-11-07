@@ -123,6 +123,7 @@ More baking, editor and benchmark gotchas: `references/ecs-baking-gotchas.md`.
 - `script eval --code '...; return x;'` with fully qualified names; `script eval_file --file f.cs` for longer probes.
 - Headless Editor to drive (verified): `unity pipeline install`, launch the editor with `-batchmode -nographics` and no `-quit`, then `unity command eval ... --project-path <p>`; commands in `references/headless-assets.md`.
 - Simulate editor clicks without a window: against a resident `-batchmode` Editor, `unity command eval --project-path <p> --result-only "$(cat probe.cs)"` runs multi-statement C#; `Undo.IncrementCurrentGroup()` around a change then `Undo.PerformUndo()/PerformRedo()` reproduces Ctrl+Z/Ctrl+Y, and Timeline's internal `TrackExtensions.Duplicate` (reflection, args `track,null,null,null`) is Ctrl+D. Ready check is `unity status --json` (`state: ready`); this CLI has no `unity list`.
+- Drag the Timeline playhead without a mouse: `TimelineEditor.GetWindow()`, reflect its internal `state` (`WindowState`), set `previewMode = true`, set `editSequence.time = t`, then call `Evaluate()` and `EvaluateImmediate()`; read `TimelineEditor.inspectedDirector.transform`. On Wayland (Hyprland) `hyprctl dispatch focuswindow address:<addr>` focuses the Editor so the Pipeline server loads, and `grim` captures it; there is no click tool without `ydotool`.
 - Details and evidence: `references/corrections.md`.
 
 ## Done means
