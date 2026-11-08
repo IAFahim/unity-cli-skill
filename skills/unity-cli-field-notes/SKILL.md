@@ -124,6 +124,9 @@ More baking, editor and benchmark gotchas: `references/ecs-baking-gotchas.md`.
 - Tl (verified tl f731c1de, tl.unity 1a375ff): pair and marker keys hash the full type name (namespace, name, `+` for nested) without the assembly name, so `tlb library --assembly` against any dll with the same types gives the same bytes; two types with one full name in a bake or kind catalog fail with both assembly names. One `Tl.LibraryAssembler` (Tl.Core) writes every `game.tlib`, from per-timeline `LibraryPart`s and `Tl.Gen.Tlb.LibraryBake.KindPayload`. `Tl.Gen.Unity` skips any assembly that already contains a `TlUnity.*.g.cs` file (checked-in snapshots such as `Tests/Kinds/Generated`); regenerate those with `Tools~/Tl.Gen.Unity.Snapshot` (`dotnet <dll> Core Tests/Kinds <out> Tl.Unity.Kinds`; `KindTypes.g.cs` is the committed `Kinds.g.cs`).
 - A package sample whose asmdef references one of the package's test assemblies breaks compile (CS0246) when a user imports it without `testables`: the missing reference is dropped, the sample still compiles. Gate such samples with an extra `defineConstraints` symbol that only test projects set.
 
+- Two assemblies whose generated code both declares `public static partial class` in one shared namespace (e.g. `Tl.Generated.TimelineJobs`) give `warning CS0436` in the one that references the other; make per-assembly generated helpers `internal` (verified 7000.0.0a16).
+- The `unity.lock` directory can vanish while you work (another agent's cleanup removes it): check it still exists before a benchmark. A K bench that overlapped another Unity run read A 10.5 / B 2.4 ns; the same code with the lock held read 8.2 / 2.0, equal to the baseline.
+
 ## 6. Small tools that save hours
 
 - `unity-cli exec` (if used) caches compiled payloads: keep each payload short and check the output is yours.
