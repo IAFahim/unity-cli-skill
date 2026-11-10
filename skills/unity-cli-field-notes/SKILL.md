@@ -147,6 +147,7 @@ More baking, editor and benchmark gotchas, including raw component bytes that wo
 
 ## 6. Small tools that save hours
 
+- Linux Unity CLI beta 15 can trigger recurring Polkit password dialogs through `systemd-creds encrypt/decrypt --name=unity-auth-broker-seal`; identify them in `journalctl -t polkitd`, then try `UNITY_NO_AUTH_BROKER=1 unity auth status --format json` (verified successful without credential authorization events), which bypasses the broker for the OS credential store.
 - `unity-cli exec` (if used) caches compiled payloads: keep each payload short and check the output is yours.
 - Read `Packages/manifest.json` and asmdef references before guessing a type's assembly. If a guessed API fails to compile once, open the source or compile a probe; don't guess twice.
 
