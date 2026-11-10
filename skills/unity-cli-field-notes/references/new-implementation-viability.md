@@ -49,6 +49,6 @@ The owner is not a relay and not a tie-breaker for things a developer would simp
 
 ## 6. Silent differences between hosts are bugs
 
-- If one host ignores a feature, it must warn. tl.unity (pin before #584) silently ignores a kind's `Idle` method: the flag stays true after its clip while the .NET host resets it. Document the portable form (an explicit "off" clip to the end of the timeline) until the Unity generator catches up.
+- If one host ignores a feature, it must warn. tl.unity (pin before #584) silently ignored a kind's `Idle` method: the flag stayed true after its clip while the .NET host reset it. It is supported since tl.unity 939a8fb; the portable form (an explicit "off" clip to the end of the timeline) works on every version.
 - Every example in a README runs on every host before it is published; code from a doc that was only read is unverified (the Hello README's added line did not compile in Unity because the sample's `foreach` has no braces, and the scene's `y` is 0.5, not 0).
 - Recycling a player row on the plain .NET host: `StopAll` fires the interrupted End pulse of a mid-clip playback on the next tick, so reset and restart the row one step later (or ignore `Interrupted` ends). Tested with 100 players. In Unity a new entity is a new row.
