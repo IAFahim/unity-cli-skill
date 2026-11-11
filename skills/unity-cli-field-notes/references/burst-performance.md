@@ -18,6 +18,9 @@ Verified on Unity 7000.0.0a16, Entities 6.7.0, Burst 1.8.25, Ryzen 5 8500G (6C/1
 
 ## Dead ends and traps
 
+- Copying job fields (a pointer-table struct, a bool) into locals once per chunk inside a Burst `IJobChunk` gave -1 % at 4M x4 (inside noise, reverted by the 3 % kill rule) and -3.5 % at 10k x150 (tl.unity 72fe89f): Burst already keeps them in registers; do not expect hoisting to pay.
+- An A/B session's old arm drifts by 3-4 % between sessions (kind job 25.9 vs 24.9 ms, same code): normalise each new-arm median by the same session's old arm before judging a 3 % kill rule.
+
 - `BurstCompilerService.GetDisassembly(MethodInfo, options)` (Unity 7: in `UnityEngine.BurstModule`, reachable by reflection) on `JobChunkProducer<T>.Execute` with hand-written options `--dump=Asm --float-mode=Strict ...` returns "Unable to compile method in BurstCompilerService::CompileAsync" instead of throwing; build the options with Burst's own internal `BurstCompiler.Options.TryGetOptions(jobType, out string, ...)` instead (Burst Inspector does this).
 - Typed `BufferAccessor<T>` (Entities 6.7) exposes only `this[]` and `Length`; raw `GetUnsafePtrAndLength(index, out length)` exists only on `UnsafeUntypedBufferAccessor` (needs a `DynamicComponentTypeHandle`). With safety checks off a `DynamicBuffer` per row is just a header pointer, so "raw runs" has little to remove.
 - Lane-first (skip frame work when a baked fold lane exists) and row-major multi-kind passes cannot help a fixture whose feeders have no `Fold` and whose job has one kind: check the generated job first (Snapshot tool); if it is byte-identical the gain is 0 by construction.
