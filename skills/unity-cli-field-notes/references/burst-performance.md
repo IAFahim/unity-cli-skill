@@ -14,6 +14,8 @@ Verified on Unity 7000.0.0a16, Entities 6.7.0, Burst 1.8.25, Ryzen 5 8500G (6C/1
 
 ## Measured wins
 
+- Gate after a generated-job change (tl.unity b4d70b3): a test added under `Tests/Kinds/Tests` runs in PlayMode, not EditMode (that asmdef is a runtime test assembly); counts packs 87/72, default 71/72 on the warm second run; the cold first run fails only the Burst-ran-managed assertions (8 packs, 7 default).
+
 - Replace a per-entry search over library tables with a precomputed direct pointer when the build can prove it returns the same answer (tl.unity c922218, `KindIndex.StepInWindow`: one step pointer per window that lies in one stage of a timeline with ascending stage ends; otherwise the old stage search). Tl kind job 4M x4: 25.7 -> 21.6 ms (-16 %), 10k x150: 2.04 -> 1.67 ms (-18 %), hashes identical. Dependent loads per entry, not arithmetic, were the cost; the gain shrinks as the job nears its memory floor (touch job 14.5 ms).
 
 - Skip per-row rule work between known edges ("horizon glide", tl.unity perf/s4-unity-horizon 9f8dccb, tl d0b77476): a 1-byte per-row count of steps until the next edge, recomputed only at edges, turns the Tl kind tick into `tick += dir` for 4 slots. Tick job 4M x4: 14.1 -> 10.3 ms (D=3000) and 14.5 -> 10.0 ms (D=300); 10k x150: 1.08 -> 0.45 ms; totals 40.7 -> 36.9 / 40.7 -> 36.4 / 2.93 -> 2.27 ms, hashes identical, 0 B main thread over 1000 ticks. The 4M job stays ~10 ms with every row gliding because it still reads and writes every 48 B in-chunk playback buffer: it is near the memory floor, so only not touching the bytes (deferred ticks) would go lower. Plan projections of 6-8 ms ignored that floor; measure a touch job first.
