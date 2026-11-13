@@ -36,3 +36,7 @@
 - A baked library records the clip type's assembly name in its metadata: name the Unity glue assembly like the host's (sv `Sv.NorthStar3`) or the bytes differ.
 - Keep `com.tl.unity` a plain manifest dependency, not under `testables`, so its own test assemblies (a kind registered twice) never compile; gate your tl assemblies with `versionDefines` on the package so a project without tl still builds.
 - `.gitattributes` `text eol=lf` rules on a package folder rewrite bytes inside committed `*.dll` and `*.bytes`: add `binary` lines for them.
+
+## Worker pools and software prefetch
+- A `Workers` pool whose threads read the generation counter on their own thread can miss the first `Run` when a worker starts late, and `Run` then spins forever (seen as an 11-minute hang under `DOTNET_EnableHWIntrinsic=0`; a memory dump confirmed it). Read the counter in the constructor (sv 03edc9e, issue 0372).
+- In a scalar Decide kernel, software prefetch loops (source rows, next chunk's table entries, two chunks ahead in Seal order) each cost more than they saved; a small per-frame table (24 B per chunk, one parallel build phase of 0.17 ms) that replaces three dependent loads with one won 11 percent. Measure a prefetch against the replacement-by-table before writing it.
