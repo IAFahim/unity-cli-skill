@@ -29,4 +29,4 @@
 - A phase that is memory-bandwidth-bound moves its cache misses to the next phase when you skip a pass (seal -0.12 ms, decide +0.11 ms): only keep a change when the whole-frame median improves.
 - Compare old and new builds interleaved in one session, median of several processes, under the bench lock; a run-to-run drift of 5-10% on this box is bigger than most micro-wins. Under 3% total: revert it.
 - A script that pipes the bench into `head` can be killed before its `rmdir` and leave a stale lock; trap the unlock.
-- 64-bit vector multiply in .NET needs the dotnet/runtime PR #103555 lowering (.NET 10): do 64-bit products as scalar `long` when operands provably fit in 2^31.
+- Saturating 64-bit products over lanes that provably fit in 2^31 are cheaper as plain `long` multiplies (measured B commit 1.41 -> 0.67 ms); background on 64-bit vector multiply: dotnet/runtime PR 103555.
