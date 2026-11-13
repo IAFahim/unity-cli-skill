@@ -23,3 +23,10 @@
 ## Shell
 - `pkill -f 'http.server 8123'` matches the shell running the command and kills it (exit 144); stop a server by pid from `ss -ltnp`.
 - A pack tool that skips regeneration when its input key is unchanged ignores changes in the emitter code: delete the output folder when you change the emitter.
+
+## Profiling and measuring .NET hot loops on Linux
+- `perf` shows no managed symbols unless the process runs with `DOTNET_EnableWriteXorExecute=0`; add `DOTNET_PerfMapEnabled=1` for symbols, or jitdump (`DOTNET_PerfMapEnabled=1` plus `perf record -k 1`, then `perf inject --jit`) for per-instruction annotation.
+- A phase that is memory-bandwidth-bound moves its cache misses to the next phase when you skip a pass (seal -0.12 ms, decide +0.11 ms): only keep a change when the whole-frame median improves.
+- Compare old and new builds interleaved in one session, median of several processes, under the bench lock; a run-to-run drift of 5-10% on this box is bigger than most micro-wins. Under 3% total: revert it.
+- A script that pipes the bench into `head` can be killed before its `rmdir` and leave a stale lock; trap the unlock.
+- 64-bit vector multiply in .NET needs the dotnet/runtime PR #103555 lowering (.NET 10): do 64-bit products as scalar `long` when operands provably fit in 2^31.
