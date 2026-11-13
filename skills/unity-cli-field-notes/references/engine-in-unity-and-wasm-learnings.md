@@ -30,3 +30,9 @@
 - Compare old and new builds interleaved in one session, median of several processes, under the bench lock; a run-to-run drift of 5-10% on this box is bigger than most micro-wins. Under 3% total: revert it.
 - A script that pipes the bench into `head` can be killed before its `rmdir` and leave a stale lock; trap the unlock.
 - Saturating 64-bit products over lanes that provably fit in 2^31 are cheaper as plain `long` multiplies (measured B commit 1.41 -> 0.67 ms); background on 64-bit vector multiply: dotnet/runtime PR 103555.
+
+## tl in Unity (plain host)
+- `Tl.Gen.Plain.dll` (plain-host generator, tl-kinds a15ea149) emits nothing for an assembly that declares no `[TimelineSystem]` struct, so zero-config-only code (`[TlState]`, `[TlKind]`, `ITlTrack`, e.g. sv `--glue tl`) gets no `Tl.Generated.TlAuto_<Asm>`. Add one empty `[TimelineSystem] public ref partial struct` and it emits `TlAuto_<Asm>` byte-identical to tl's .NET generator output.
+- A baked library records the clip type's assembly name in its metadata: name the Unity glue assembly like the host's (sv `Sv.NorthStar3`) or the bytes differ.
+- Keep `com.tl.unity` a plain manifest dependency, not under `testables`, so its own test assemblies (a kind registered twice) never compile; gate your tl assemblies with `versionDefines` on the package so a project without tl still builds.
+- `.gitattributes` `text eol=lf` rules on a package folder rewrite bytes inside committed `*.dll` and `*.bytes`: add `binary` lines for them.
