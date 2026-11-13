@@ -40,3 +40,7 @@
 ## Worker pools and software prefetch
 - A `Workers` pool whose threads read the generation counter on their own thread can miss the first `Run` when a worker starts late, and `Run` then spins forever (seen as an 11-minute hang under `DOTNET_EnableHWIntrinsic=0`; a memory dump confirmed it). Read the counter in the constructor (sv 03edc9e, issue 0372).
 - In a scalar Decide kernel, software prefetch loops (source rows, next chunk's table entries, two chunks ahead in Seal order) each cost more than they saved; a small per-frame table (24 B per chunk, one parallel build phase of 0.17 ms) that replaces three dependent loads with one won 11 percent. Measure a prefetch against the replacement-by-table before writing it.
+
+## Benchmarks and tests on stale generated kernels
+- A test or bench project that generates its kernels at build time (`build/Sv.Pack.targets`, output `obj/SvPack`) can run the previous emitter's kernels under a new host: the incremental target listed only the tool's `sv.dll` as input, not `Sv.Rules.dll` (the emitter), and the tool itself skips an unchanged pack. Symptom: digests identical, suites green, but a phase gets slower (B commit 0.2 -> 1.2 ms) and a claimed gain does not reproduce. Check `stat` of `obj/SvPack/Kernels.g.cs` against the emitter dll, delete `obj/SvPack/.svpack.key`, rebuild. sv now lists every dll of the tool folder as input.
+- When an agent's number does not reproduce, bisect with detached worktrees of its commits built in scratch before blaming the code: here its tip was fine and my checkout was stale.
