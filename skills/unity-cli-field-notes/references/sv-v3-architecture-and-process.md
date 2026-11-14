@@ -124,6 +124,7 @@ Lesson: every projection was off by 30-50 % in one direction or the other; plans
 | "Fold once per changed cell" vs code folding every touched row | fold iff delta != 0 or a bounding stat changed |
 | "Pending event re-check" undefined | re-check iff spawned, intrinsic folded to a new value, stat changed, or a channel total non-zero this or last frame |
 | Card field named a card row in one section and an intrinsic in another | reader accepts card name first, then intrinsic |
+| A `per: Frame/Source` emit guard intersected the channel sets of `and(taken(A) > 0, offered(B) > 0)`: disjoint sets gave mask 0 and the emit never fired (sv 0401, found by fuzzing 21,000 packs, not by any hand test) | a presence pre-guard is a necessary condition: AND one mask per aggregate conjunct; intersecting is right only when every conjunct constrains the same record's field |
 
 Plans written without opening code contradict themselves in small places; the implementing agent records each reading in an issue with the chosen interpretation and keeps code following it until the owner or senior confirms.
 
