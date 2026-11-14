@@ -44,3 +44,8 @@
 ## Benchmarks and tests on stale generated kernels
 - A test or bench project that generates its kernels at build time (`build/Sv.Pack.targets`, output `obj/SvPack`) can run the previous emitter's kernels under a new host: the incremental target listed only the tool's `sv.dll` as input, not `Sv.Rules.dll` (the emitter), and the tool itself skips an unchanged pack. Symptom: digests identical, suites green, but a phase gets slower (B commit 0.2 -> 1.2 ms) and a claimed gain does not reproduce. Check `stat` of `obj/SvPack/Kernels.g.cs` against the emitter dll, delete `obj/SvPack/.svpack.key`, rebuild. sv now lists every dll of the tool folder as input.
 - When an agent's number does not reproduce, bisect with detached worktrees of its commits built in scratch before blaming the code: here its tip was fine and my checkout was stale.
+
+## Checking an outside perf recommendation on this box (Ryzen 5 8500G, Linux, THP always, defrag madvise)
+- With THP `always` and `defrag=madvise`, a 1 GB .NET process had only 30 percent huge pages; `madvise(MADV_HUGEPAGE)` after `NativeMemory.Alloc` of big blocks barely raised it (glibc's mmap'd chunks are not 2 MB aligned and are often touched before the advice), and frame time did not move. Measure `AnonHugePages` in `/proc/<pid>/smaps_rollup` before believing a huge-page gain.
+- Fewer workers (6 of 11) for "bandwidth-bound" phases made those phases slower on this 2 x Zen 4 + 4 x Zen 4c part; test the claim, do not assume SMT is useless for streaming passes.
+- `perf stat -e instructions,cycles,branch-misses,branches` works in user mode (paranoid 2) and settles "is it speculation?" in one run (here IPC 1.8, misses 2 percent of branches).
