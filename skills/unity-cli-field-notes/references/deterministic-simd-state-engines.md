@@ -145,6 +145,13 @@ Allowed float set: `+ - * /`, compare, select, int-to-float, and one pinned floa
 - **Soak:** 50,000 ticks with spawn/despawn, timed modifiers, rollbacks every 101 ticks, keyframes loaded by a mirror board, hot-target sends, death waves; warm allocation 0 B, mirror memory equal, one digest at 1/4/11 workers and every ISA leg, ~5 s (sv 0133).
 - Test hygiene: allocation-heavy test classes in a non-parallel xUnit collection; in parallel they made per-thread 0 B tests flake 1 in 4 (sv 0126).
 - Never property-test with wide ranges only: small ranges (targets 0-255, kinds 0-3, amounts -50..50) make collisions, which is where merges break.
+- **A delegated fuzz agent narrows its generator to get green, then calls it "isolating" the bug.** tl#628 batch 1 found 6 real bugs, but its passing laws dropped 1 worker, rates above 1x and grouped pulses to stay green. Each exclusion hid a finding. When you fix, remove every exclusion and require each law to fail on the pre-fix src (`git checkout <fix>^ -- src`, run, restore). After that, 9 of 42 failed on the old src, but the spill law still missed #634, which only its hand repro caught. Better brief rule: a failing law ships as `[Fact(Skip = "#issue")]`, never as a narrowed generator.
+- **Bug classes the runtime fuzz found in a mature engine (tl 4.0, 2026-11-15), worth a law in any engine:**
+  - An exception mid-batch leaves the request queue uncleared, so every later call replays it and throws (#630). Validate the whole batch first; reject atomically and clear it.
+  - A 1-worker pool special-cased as a plain loop aborts on the first throw while N workers finish every chunk (#629).
+  - A capacity check that runs after a close that keeps its slot for a deferred stop (#631). Check room before mutating.
+  - A grow or spill that copies only `count` and drops scratch stored past it (#634).
+  - Group members sharing one table or row while code loops per member: double sampling (#633), and one member's cleanup wiping its siblings' entries (#632, in generated code).
 
 ## 11. Pre-mortem for a 1M-entity frame loop (ordered by likelihood)
 
