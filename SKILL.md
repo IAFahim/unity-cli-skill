@@ -13,7 +13,7 @@ description: |
 ## Rules that never bend
 
 1. **Inspect before you mutate.** Before touching a scene object, report the active scene path, the root objects, and whether the target lives in the parent scene or in a referenced subscene asset. Reuse what exists; create only after absence is confirmed.
-2. **Measure, don't assume.** Done = compile clean (`error CS` = 0) + the requested state read back directly (object at its path, component on it, entity query count > 0). A count of 0 is a failure, whatever the tests say.
+2. **Measure, don't assume.** Done = compile clean (`error CS` = 0 and no `warning` lines from your own code: Unity 7 warnings are rules, see owner rule 22) + the requested state read back directly (object at its path, component on it, entity query count > 0). A count of 0 is a failure, whatever the tests say.
 3. **One fix per cycle.** One change, compile, verify. After two failures from quoting, escaping or context confusion, stop writing code and only inspect until you find the mistake.
 4. **No guessed APIs.** Probe a type or namespace with a minimal compile-safe query. If a guess fails once, read the asmdef or the source.
 5. **No helper scaffolding to dodge a failed query.** Simplify the query instead. Editor scripts, menu items and converters only when the person asked for permanent code. Remove anything temporary.
