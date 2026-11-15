@@ -52,7 +52,7 @@ description: |
 - `OnUpdate` stays trivial; logic lives in stateless pure functions with tests.
 - Zero allocation in hot paths, Burst and jobs, native collections only.
 - Components are normalized pure data; utilities are stateless extensions; engine glue is never mixed with logic in one file.
-- No comments: name and extract instead. Small single-purpose files. Constants for magic numbers.
+- No comments: name and extract instead. Small single-purpose files. No tunable values in code: a named `const` is still hardcoded. Every number, key, colour, count or text a person might change lives in a designer-editable asset (ScriptableObject grouped by owner, tl clip, sv pack) referenced in the Inspector; see owner rule 21 in `skills/unity-cli-field-notes/SKILL.md`.
 - UI Toolkit for UI. No drive-by refactors.
 
 ## Six assemblies per feature
