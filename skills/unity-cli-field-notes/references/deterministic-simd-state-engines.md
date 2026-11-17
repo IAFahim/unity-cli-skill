@@ -206,3 +206,26 @@ Census of a real engine (sv `src/Sv`, 0117) built as netstandard2.1 C# 9: pass 1
 | One frame of delay between entities is acceptable | same-frame resolution needs a fixpoint and breaks locality | play five real cards through the interpreter with a designer |
 | Stat undo log and lane journal agree after rewind | silent divergence | twin-world test written first |
 | 256 kinds fit the key | record grows to 24 B | ask the owner |
+
+
+## 16. Event-driven stepping: touch a row only on the tick where it changes (tl#647, 2026-11)
+
+When the per-visit cost is at its floor (tl eager stepping: 1.6-1.8 ns per slot visit) the only lever left is fewer visits. What worked, measured on .NET 10, one thread, 10,000-20,000 entities x 40-200 playbacks:
+
+- **Store monotone state relative to a clock.** A value that only moves by one per tick is stored as `value - clock * dir` (16-bit wrap). It is exact on every tick and its bytes never change while calm, so a calm tick writes nothing. Decode at the boundary, run the unchanged step rule, encode again: the old rule stays the single source of truth and the differential test is "bytes equal the eager table after decode".
+- **One `ushort due` per slot plus one `ushort next` per entity** (the low 16 bits of the tick to visit). `next` is only a lower bound: a stale low value costs a spurious visit, never a miss, which removes most of the bookkeeping on edits ("revisit next tick" is always a correct seal). A due may be early, never late; an early visit is a real step.
+- **Entity-level horizons die with slot count.** One horizon per entity = min over its slots: at 100 slots the minimum is almost always 0 and the "fast path" was 0.73-1.55x of eager. Per-slot dues gave 9-162x over eager at the same shapes on .NET 10 (one thread, durations 120-3000).
+- **Scan, gather, prefetch, land.** Stepping each hit as it is found made every slot touch a serial DRAM miss. Collecting hits of up to 64 entities into a stack buffer, prefetching each slot line (`Sse.Prefetch0`; Burst: `Unity.Burst.Intrinsics.Common.Prefetch`), then stepping them made the misses overlap: the batched kernel took 20,000 x 200 at duration 120 from 3.66 to 0.79 ms per tick and duration 3000 from 0.114 to 0.064 ms. Size the buffer for the worst case of the last gathered entity (batch + max slots) and add a test that fills it to the last lane.
+- **netstandard2.1 has no prefetch and a scalar compare.** The same kernel compiled for the netstandard2.1 asset (what Unity, .NET 8/9 and Godot hosts load) was only 1.6-1.8x faster than eager at the dense cells. A touch pass that reads one byte of every gathered slot (`Volatile.Read`, so the JIT keeps the load) before stepping any lets the misses overlap: 1.61 to 1.15 ms per tick at 20,000 x 100, duration 120. A portable `Vector<ushort>` compare took the same cell to 0.63 ms but cost .NET 10 20-34 percent (`EqualsAny` plus a scalar rescan and a scalar min reduction mispredict); keep `Vector128` with `ExtractMostSignificantBits` on .NET and do not trade it away for one shared body.
+- **Know the cost side.** Lazy stepping costs memory (+25 percent logical, +16-40 percent measured private bytes), a first tick 3-6x an eager one after a mass start, and about 11 ns per due slot when most slots are due: below about 8-tick timelines eager wins. Keep it opt-in per table.
+- **Fast path must be proven taken.** The existing fuzz laws ran a generated reader before every step; that reader took a raw view, which disabled the cache, so the cached path had never been fuzzed. Count visits in the checked build and assert the count, and give the fast path a law with nothing else in the loop.
+- **A raw-pointer getter is an escape.** Any public pointer into encoded storage must decode everything and turn the mode off for good; value-returning accessors decode a copy. List every getter; the one that was missed here was the playing-bit pointer.
+
+RyuJIT facts that cost time:
+
+- Locals in a loop that contains a call are spilled to the stack around it; keep the hot loop call-free (inline the kernel, or split scan from land) before judging a design.
+- `Vector<T>` element access with a variable index is very slow; use `Vector128`/`Vector256` with `ExtractMostSignificantBits` and walk the mask.
+- **Tiering artifact:** a tick function called a few thousand times is still in tier 0 or OSR code. A cell that runs 0.004 ms per tick measured 0.030 ms with a 512-tick warmup and 0.004 ms with 8,192. Warm by call count, not by time, when an arm is fast.
+- Profiling a JIT method with `perf`: `DOTNET_PerfMapEnabled=1 DOTNET_EnableWriteXorExecute=0`; listings with code bytes from `DOTNET_JitDisasm=<method> DOTNET_JitStdOutFile=<file> DOTNET_JitDisasmWithCodeBytes=1`, then join sample addresses to instructions.
+
+Mutation check for a kernel like this, cheap enough to run before every push: a script that applies one textual fault (calm one too long, revisit one tick late, a vector lane dropped, a spill that forgets its side lane, a decode one tick off), builds, runs the differential tests and the fuzz, restores. 15 faults took about 30 minutes. Survivors were dead code twice (delete it) and one stack overrun by a single lane that no test can observe (keep a spare lane and say so).
