@@ -152,6 +152,8 @@ Allowed float set: `+ - * /`, compare, select, int-to-float, and one pinned floa
   - A capacity check that runs after a close that keeps its slot for a deferred stop (#631). Check room before mutating.
   - A grow or spill that copies only `count` and drops scratch stored past it (#634).
   - Group members sharing one table or row while code loops per member: double sampling (#633), and one member's cleanup wiping its siblings' entries (#632, in generated code).
+  - A step that writes per-row scratch (rated playbacks' per-crossing copies plus a copy count) but reports "row still live" from the real slots only: when the last rated slot ends in that step the row is not revisited, the stale count stays, and later steps replay old copies (in Unity, a read past the row after a swap). Return live or scratch written (tl#652 review); law: run 2x for N steps against 1x for 2N steps past the end and assert the copy count is 0.
+- **Prove a regression test on the unfixed code with git, not sed.** `git stash push -- <file>` (or `git checkout <fix>^ -- <file>`), run, restore. A `sed s/new/old/` then `s/old/new/` round trip also rewrites every other line equal to the old text; in tl#652 a second `return live;` in the same file changed silently and only `git diff` showed it.
 
 ## 11. Pre-mortem for a 1M-entity frame loop (ordered by likelihood)
 

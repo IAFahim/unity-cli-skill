@@ -13,6 +13,7 @@ Show where the time goes (counters, a trace, a stopwatch per phase) before you c
 - **Indirect loads** (`order[pos]` then three arrays at that index) and phase-grouped scatter. Lay data out so the hot loop reads sequentially by row; rows are also what threads split on.
 - **Managed arrays on the runtime path** (the repo rule: unmanaged only). At 16M playbacks the managed buffers (hundreds of MB) caused large-object GC pressure and a setup 1.7x slower than the old engine. Use native buffers.
 - **JIT tier-up**: the first pass is 2x slower than the third. Warm up, discard the first rounds, and say so.
+- **`DOTNET_TieredCompilation=0` does not fix tier-up noise in a bench**: it turns off dynamic PGO, so the measured code is slower than what ships, and the first steps still allocate while methods JIT. Keep default tiering, warm by step count (tl KindShape: 40 steps at 10,000-1,000,000 entities), then assert 0 B per warm step (tl#652).
 - **Quadratic setup** (a linear scan per start). Use a hash or a sort; test setup at the largest size you claim.
 
 ## 2. A fair A/B, or it does not count
