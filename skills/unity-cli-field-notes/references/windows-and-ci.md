@@ -8,6 +8,12 @@
 - `Baker.GetComponents<T>()` (array overload) throws "Unknown Type" for a `MonoBehaviour` not registered with the TypeManager; the `List<T>` overload works.
 - A fresh project plus the first EditMode run takes a few minutes on a 6-core machine.
 - `unity install latest` does not give Unity 7. Use `unity install 7`.
+- An agent's PowerShell call starts with the PATH its session started with, so right after installing git, gh or the .NET SDK they are "not recognized". Begin every call with `$env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')`. A user-scope SDK from `dotnet-install.ps1 -InstallDir $env:LOCALAPPDATA\Microsoft\dotnet` needs that folder (and `%USERPROFILE%\.dotnet\tools` for `ilspycmd`) added to the user PATH plus `DOTNET_ROOT` set; `dotnet-install.ps1` sets neither persistently.
+- tl's `ci.yml` line `python3 -m unittest discover -s tests -p test_release_artifacts.py` shells out to `bash`, which is not on the Windows PATH: it errors `FileNotFoundError: [WinError 2]`. Put `C:\Program Files\Git\bin` first on PATH for the gate.
+- tl.unity has no `eol` rule in `.gitattributes`, so under Git for Windows' default `core.autocrlf=true` the sync scripts (`eng/sync-tl-core.sh`, `sync-tl-bake.sh`, `sync-parity.sh`) rewrite every synced file with LF and `git status` lists them all as modified. `git diff --ignore-cr-at-eol --stat` shows the real changes; `git add` normalizes the rest. tl itself pins `* text=auto eol=lf`, so its byte budget is the same on Windows.
+- A fresh Windows user profile: Unity's first batch run logs `CreateDirectory 'C:/Users/<you>/AppData/Local/Unity/Caches' failed`. Create that folder once.
+- Windows PowerShell 5.1 mangles `gh ... -q '.a + " " + .b'` (the inner double quotes are split off as extra arguments). Take `--json` output and pipe it to `ConvertFrom-Json` instead.
+- tl's `eng/agent-work` writes Project 6 through `gh project`, which fails with `your authentication token is missing required scopes [read:project]` under `gh auth login`'s default scopes (`gist, read:org, repo, workflow`). Run `gh auth refresh -h github.com -s project` once (interactive).
 
 ## Self-hosted runner
 
