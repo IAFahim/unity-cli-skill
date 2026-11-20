@@ -21,7 +21,7 @@
 - Content files from outside the project can be published under `wwwroot` with `<Content Include="..\x.json" Link="wwwroot\samples\x.json" />`.
 
 ## Shell
-- `pkill -f 'http.server 8123'` matches the shell running the command and kills it (exit 144); stop a server by pid from `ss -ltnp`.
+- `pkill -f 'http.server 8123'` matches the shell running the command and kills it (exit 144); stop a server by pid from `ss -ltnp`. The same self-match makes `while pgrep -f 'Bench.dll'; do sleep 10; done` wait forever, because the loop's own `bash -c` command line contains the pattern: wait on the pid you started (`$!`, `wait`, `tail --pid`) or match the full program path with a pattern the loop does not contain.
 - A pack tool that skips regeneration when its input key is unchanged ignores changes in the emitter code: delete the output folder when you change the emitter.
 
 ## Profiling and measuring .NET hot loops on Linux
