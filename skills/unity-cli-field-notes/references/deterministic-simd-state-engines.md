@@ -231,3 +231,17 @@ RyuJIT facts that cost time:
 - Profiling a JIT method with `perf`: `DOTNET_PerfMapEnabled=1 DOTNET_EnableWriteXorExecute=0` (without W^X off the samples show as raw low addresses); with `kernel.perf_event_paranoid = 2` count user cycles only (`perf record -e cycles:u`, `perf stat -e cycles:u,instructions:u`), or perf fails with "Failure to open any events"; listings with code bytes from `DOTNET_JitDisasm=<method> DOTNET_JitStdOutFile=<file> DOTNET_JitDisasmWithCodeBytes=1`, then join sample addresses to instructions.
 
 Mutation check for a kernel like this, cheap enough to run before every push: a script that applies one textual fault (calm one too long, revisit one tick late, a vector lane dropped, a spill that forgets its side lane, a decode one tick off), builds, runs the differential tests and the fuzz, restores. 15 faults took about 30 minutes. Survivors were dead code twice (delete it) and one stack overrun by a single lane that no test can observe (keep a spare lane and say so).
+
+## 17. Before redesigning a hot loop, model it in C and calibrate (tl#673, 2026-11)
+
+- **Model today's layout in C first.** Use OpenMP with 12 threads on the Ryzen 8500G. If that model lands within about 20% of the real Burst numbers, the same harness can price each alternative layout in minutes instead of days. For tl kinds it landed at 7.84 ms against 6.79 ms in Unity at 50k × 100.
+- **Port the winner to C# with `Vector256` and match the state hash exactly.** Then time it on one pinned Zen4 core. In this work the .NET 10 JIT ran 1.35-1.42x slower than C. Do not assume parity.
+- **Once a pass is memory-bound, compute tweaks do nothing.** Count the bytes. Two passes over 5M × 8-byte slots is 120 MB per step, near this machine's mixed read/write bandwidth. In the model, fusing the passes or halving the slot bought at most 1.6x. Not writing per-slot state at all bought 6x.
+- **Time-relative origins.** A playing 1x timeline can be a `ushort` origin, with row = origin + world frame, so stepping writes nothing. Four tricks keep full control:
+  - store a reversed layout, so reverse playback also advances +1;
+  - keep two value tables, one per world direction, each row flagged at its end;
+  - give tombstones a zero row, so slot order is kept;
+  - put paused, rated and transient slots on an explicit side list.
+  Prove it with a random-control oracle against an explicit-tick reference, and mutation-test the oracle.
+- **Compare baselines on the same domain.** An "x over start" figure is only valid if the start was measured on the same kind domain. Check the command line behind every baseline number before you quote a ratio.
+- **Size `InternalBufferCapacity` for the shape you will run.** A spike that reserved 100 inline slots per entity (264 B of chunk per entity) was fast at 50k × 100 but slower than main at 1M × 2-4: about 10 ns per entity, because chunk bytes per entity dominate at large N.
