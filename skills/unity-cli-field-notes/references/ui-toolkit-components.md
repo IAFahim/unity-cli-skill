@@ -87,3 +87,9 @@ Verified in `-batchmode -nographics` PlayMode tests, with components declared bo
   - a `[UxmlElement]` Painter2D element.
 - A `-batchmode -nographics` player runs ECS and UI Toolkit (events, bindings, scheduled items, data binding). `Application.Quit(code)` becomes the process exit code, so a smoke scene can gate CI.
 - A UPM Git dependency with `?path=/<package>#<branch>` installs a package from a subfolder of a repository. List every Git package of the set in the project manifest.
+
+## Panel settings that do not stick, and seeing a frame (verified 7000.0.0a20)
+
+- A `UIDocument` built by an editor script loses its panel settings on save: `doc.panelSettings = ps` and writing `m_PanelSettings` through `SerializedObject` both end as `m_PanelSettings: {fileID: 0}` in the scene (batch, with and without `-nographics`), while a `PanelSettings` field on your own MonoBehaviour saves fine. Give your component the reference and assign `doc.panelSettings` at runtime when it is null.
+- To see a running scene headless: a PlayMode test in a batch Editor without `-nographics` sets `Camera.main.targetTexture`, clones the panel settings with `targetTexture`, `clearColor = true`, `colorClearValue = clear`, waits a few frames, calls `Camera.Render()`, reads both RenderTextures with `ReadPixels` and alpha-composites them. With the image-conversion module absent (`Texture2D.EncodeToPNG` is CS1061), write a binary PPM (`P6`, rows top first) and convert outside Unity.
+
