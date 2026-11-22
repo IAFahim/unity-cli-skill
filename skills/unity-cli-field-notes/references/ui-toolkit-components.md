@@ -49,6 +49,24 @@ Verified in `-batchmode -nographics` PlayMode tests, with components declared bo
 - Check the decompiled module before you build any of these yourself.
 - One `VisualElement.schedule.Execute(action)` item, created once and paused, can be re-armed with `ExecuteLater(ms)` for a delayed show, such as a runtime tooltip. Focus moves between two tooltipped buttons (`FocusInEvent` on the root, text and inline position writes) measured 0 B warm.
 
+## Custom bindings and measuring UI Toolkit's own work
+
+- A custom binding type works from UXML `<Bindings>` and from C#:
+  - Declare `[UxmlObject] public partial class X : DataBinding` and override `protected override BindingResult UpdateUI<TValue>(in BindingContext context, ref TValue value)`.
+  - Read the source value without boxing: `typeof(TValue) == typeof(float)` plus `UnsafeUtility.As<TValue, float>(ref value)`.
+  - `[UxmlAttribute]` fields of enum, float and bool type parse; this was tested with non-default values.
+  - Set `bindingMode = BindingMode.ToTarget` in the constructor.
+  - Returning `new BindingResult(BindingStatus.Pending)` makes UI Toolkit retry next update.
+- Native bindings worth knowing:
+  - `enabledSelf` binds directly, for example a bool through a `!value` converter group.
+  - `DropdownField.index` (`PopupField<T>.index`, `[CreateProperty]`) binds TwoWay to an int.
+  - The `tooltip` field binds.
+- To measure what UI Toolkit itself allocates (bindings, scheduled items, components), insert two `PlayerLoopSystem`s around the subsystem whose `type.Name` is `UIElementsUpdatePanels`. Have them read `GC.GetAllocatedBytesForCurrentThread()`. Measured 0 B over 239 ticks with standard DataBindings, three custom DataBinding subclasses and a Painter2D element whose ECS-backed source changed every frame.
+- A hotkey reference that survives a saved scene:
+  - Create `ScriptableObject.CreateInstance<InputActionAsset>()`, call `AddActionMap(..).AddAction(.., binding: "<Keyboard>/p")`, and save it with `AssetDatabase.CreateAsset` as `.asset`.
+  - Call `InputActionReference.Create(action)` and attach the result with `AssetDatabase.AddObjectToAsset(reference, asset)`.
+  - A field holding that reference keeps `action` after the scene is reopened, and the hotkey fires in PlayMode.
+
 ## Lists, drag, per-entity views
 
 - `BaseVerticalCollectionView.makeItem` and `bindItem` are `[Obsolete]`. Set them on `ListView`. Call `RefreshItems()` only when the row count changes. Bound rows re-evaluate through their data source's version.
