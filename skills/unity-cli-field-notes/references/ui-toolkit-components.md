@@ -76,3 +76,14 @@ Verified in `-batchmode -nographics` PlayMode tests, with components declared bo
   - then `MouseUp` and `PointerUpEvent`
 - A `NativeArray` from `Allocator.Temp` held across a `yield return` in a PlayMode test throws `ObjectDisposedException`. Copy it first with `.ToArray()`.
 - Placing a pooled view over each entity with `RuntimePanelUtils.CameraTransformWorldToPanel` and an inline `style.translate` every frame allocates 0 B once the views exist.
+
+## Player builds (verified 7000.0.0a16, Linux)
+
+- `ScriptingImplementation` has `CoreCLR` (the default) and `IL2CPP`. `PlayerSettings.SetScriptingBackend(NamedBuildTarget.Standalone, ...)` switches between them. Restoring the old value afterwards writes `Standalone: 3` (CoreCLR) into ProjectSettings explicitly.
+- `BuildPipeline.BuildPlayer` with SubScene scenes produces a player whose entity scenes bake and load, with no extra build package.
+- In both backends these load from UXML and run, with no `link.xml`:
+  - `[VisualElementComponent]` structs;
+  - `[UxmlObject]` DataBinding subclasses;
+  - a `[UxmlElement]` Painter2D element.
+- A `-batchmode -nographics` player runs ECS and UI Toolkit (events, bindings, scheduled items, data binding). `Application.Quit(code)` becomes the process exit code, so a smoke scene can gate CI.
+- A UPM Git dependency with `?path=/<package>#<branch>` installs a package from a subfolder of a repository. List every Git package of the set in the project manifest.
