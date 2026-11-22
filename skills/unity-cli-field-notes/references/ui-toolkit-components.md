@@ -27,6 +27,16 @@ Verified in `-batchmode -nographics` PlayMode tests, with components declared bo
 - A static handler can find its owning MonoBehaviour without a stored reference. Walk `owner.hierarchy.parent` until an element equals a root that an enabled host registered from its PanelRenderer reload callback. Clear that static list on `SubsystemRegistration`.
 - With C# 9, a `ref` local inside a test coroutine is a compile error (`CS8773`). Move `ref var c = ref e.GetComponent<T>()` into a helper method. Reading `e.GetComponent<T>().Field` inline is fine.
 
+## Keyboard, gamepad and ListView interaction
+
+- `ClickEvent` comes only from pointers. A `Button` turns Submit (`NavigationSubmitEvent`, sent to the focused element: Enter or gamepad South) into `Clickable.clicked`, never into `ClickEvent`. A handler that registers only `ClickEvent` is dead for keyboard and gamepad. Register `NavigationSubmitEvent` too, and set `focusable = true` on elements that are not already focusable.
+- In a runtime panel, a reorderable `ListView`'s own drag works with synthesized pointer events: down on a row, move at least 10 px with the button held, then up over another row.
+  - `handleDrop` receives `dropPosition` and `insertAtIndex`. `OverItem` gives the row index; `BetweenItems` gives the insert slot.
+  - Returning `DragVisualMode.Move` accepts the drop and skips the view's own reorder, so `itemsSource` stays as it was and your code decides.
+  - The dragged row is `selectedIndex`.
+- `ListView.SetSelection(i)` raises `selectedIndicesChanged` at once. A `NavigationSubmitEvent` on the view reaches callbacks registered on it, which can read `selectedIndex`.
+- A `DataBinding` with `BindingMode.TwoWay` from a Slider or Toggle to a `[CreateProperty]` field of a ScriptableObject data source writes the asset in the next frames at runtime. Other bindings on that field follow.
+
 ## Lists, drag, per-entity views
 
 - `BaseVerticalCollectionView.makeItem` and `bindItem` are `[Obsolete]`. Set them on `ListView`. Call `RefreshItems()` only when the row count changes. Bound rows re-evaluate through their data source's version.
