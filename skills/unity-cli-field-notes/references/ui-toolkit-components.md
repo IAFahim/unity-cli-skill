@@ -76,6 +76,11 @@ Verified in `-batchmode -nographics` PlayMode tests, with components declared bo
   - then `MouseUp` and `PointerUpEvent`
 - A `NativeArray` from `Allocator.Temp` held across a `yield return` in a PlayMode test throws `ObjectDisposedException`. Copy it first with `.ToArray()`.
 - Placing a pooled view over each entity with `RuntimePanelUtils.CameraTransformWorldToPanel` and an inline `style.translate` every frame allocates 0 B once the views exist.
+- A drag that moves the element holding pointer capture to another parent (to draw it above the other lists) broke the drag in a synthesized-pointer test: the hover target was never marked (verified 7000.0.0a20). What works there, in PlayMode tests and in CoreCLR and IL2CPP players:
+  - Leave the dragged element in place, holding the capture, and give it a class (dim it in USS).
+  - Draw a ghost on top instead: `VisualTreeAsset.Instantiate()` of the same row template, `pickingMode = Ignore`, `position: absolute`, the same `dataSource` and `dataSourcePath`, added once to the panel root, then `BringToFront()`. Move it with `style.left` and `style.top` from `root.WorldToLocal(row.worldBound.position)` plus the pointer delta.
+  - To find what is under the pointer, use `IPanel.PickAll(point, reusedList)`, and skip the ghost, the dragged element and their descendants (`element.Contains(picked)`).
+- A `[VisualElementComponent] partial struct` can hold managed fields, such as a `VisualElement` or a `List<VisualElement>`, and mutate them through `ref self` in its `[RegisterCallback]` handlers. Per-element drag state lives there, with no statics (verified 7000.0.0a20).
 
 ## Player builds (verified 7000.0.0a16, Linux)
 
