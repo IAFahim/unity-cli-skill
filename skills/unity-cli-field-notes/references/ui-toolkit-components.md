@@ -37,6 +37,18 @@ Verified in `-batchmode -nographics` PlayMode tests, with components declared bo
 - `ListView.SetSelection(i)` raises `selectedIndicesChanged` at once. A `NavigationSubmitEvent` on the view reaches callbacks registered on it, which can read `selectedIndex`.
 - A `DataBinding` with `BindingMode.TwoWay` from a Slider or Toggle to a `[CreateProperty]` field of a ScriptableObject data source writes the asset in the next frames at runtime. Other bindings on that field follow.
 
+## What a16 already has
+
+- The 7000.0.0a16 UIElements module already contains the features docs list for Unity 6.3 to 6.7:
+  - USS `filter`, `drop-shadow`, `backdrop-filter`, `aspect-ratio`, `gap`, and grid display;
+  - UI animation clips (`animation-name`);
+  - `VisualElementReference`;
+  - `PanelSettings.extraVertexChannels` and `AddMeshModifier`;
+  - `TextElement.PostProcessTextVertices`;
+  - `TabView`, `RepeatButton`, `ToggleButtonGroup`, `VectorImage` and `Painter2D`.
+- Check the decompiled module before you build any of these yourself.
+- One `VisualElement.schedule.Execute(action)` item, created once and paused, can be re-armed with `ExecuteLater(ms)` for a delayed show, such as a runtime tooltip. Focus moves between two tooltipped buttons (`FocusInEvent` on the root, text and inline position writes) measured 0 B warm.
+
 ## Lists, drag, per-entity views
 
 - `BaseVerticalCollectionView.makeItem` and `bindItem` are `[Obsolete]`. Set them on `ListView`. Call `RefreshItems()` only when the row count changes. Bound rows re-evaluate through their data source's version.
