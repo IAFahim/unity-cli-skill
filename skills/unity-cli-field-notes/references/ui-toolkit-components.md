@@ -98,3 +98,13 @@ Verified in `-batchmode -nographics` PlayMode tests, with components declared bo
 - A `UIDocument` built by an editor script loses its panel settings on save: `doc.panelSettings = ps` and writing `m_PanelSettings` through `SerializedObject` both end as `m_PanelSettings: {fileID: 0}` in the scene (batch, with and without `-nographics`), while a `PanelSettings` field on your own MonoBehaviour saves fine. Give your component the reference and assign `doc.panelSettings` at runtime when it is null.
 - To see a running scene headless: a PlayMode test in a batch Editor without `-nographics` sets `Camera.main.targetTexture`, clones the panel settings with `targetTexture`, `clearColor = true`, `colorClearValue = clear`, waits a few frames, calls `Camera.Render()`, reads both RenderTextures with `ReadPixels` and alpha-composites them. With the image-conversion module absent (`Texture2D.EncodeToPNG` is CS1061), write a binary PPM (`P6`, rows top first) and convert outside Unity.
 
+## Screenshots of runtime UI with no display (verified 7000.0.0a20, Linux)
+
+- `-batchmode` without `-nographics` creates an OpenGL Core device with no X or Wayland display (`OPENGL LOG: Creating OpenGL 4.6 graphics device`). So a batch Editor can enter Play mode and render real UI images:
+  1. `EditorApplication.EnterPlaymode()` from `-executeMethod`, with no `-quit`, and finish with `EditorApplication.Exit(0)`.
+  2. Copy the screen's `PanelSettings` with `Instantiate`, set `targetTexture` to a `RenderTexture` and `clearColor = true`, and assign the copy to the `PanelRenderer`. The UI rebuilds; a Tl UI Panel resolves again on its reload callback.
+  3. Read the texture with `RenderTexture.active` and `Texture2D.ReadPixels`, then write it with `EncodeToPNG`.
+- Synthesized pointer events, ECS systems and Tl timelines all run there.
+- Wait in wall-clock time (`Stopwatch`), plus a few `Time.frameCount` frames. An `EditorApplication.update` driver must step into nested `IEnumerator`s itself, or every nested wait passes after one tick.
+- In those captures, labels drawn in the first seconds came out blank after about 3 s of play. Setting every `TextElement.text` to "" for two frames, then back, before each capture brought the text back. The cause is not confirmed.
+- Only runtime panels render this way. Editor windows (Inspector, Timeline, UI Builder) need a real or virtual display.
