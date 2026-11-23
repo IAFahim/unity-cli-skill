@@ -7,3 +7,4 @@
 5. Look it up before asking or guessing: this skill and the linked issues first.
 6. Reports: what works (commands), counts, commit hashes, what is not verified, what the owner must decide.
 7. Pushes: direct pushes to `main` are authorized in IAFahim repos: `git pull --rebase origin main`, then `git push origin HEAD:main`, never `--force`. Elsewhere do not push, comment or merge unless asked.
+8. Sibling agents launched from one coordinator session can share one scratchpad directory. Prefix every script and output file you put there with your agent id (`r3-cell.sh`, not `cell.sh`): on tl#673 a sibling wrote its own `final.sh` over R3's, and R3 then ran the sibling's Unity bench and overwrote its result files. A lock script must also delete the lock only when its own `mkdir` succeeded.
