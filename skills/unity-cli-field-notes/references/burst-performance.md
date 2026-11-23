@@ -95,7 +95,24 @@ Verified on Unity 7000.0.0a16, Entities 6.7.0, Burst 1.8.25, Ryzen 5 8500G (6C/1
 - Time-relative dense playbacks in Unity (IAFahim/tl#673 U2, tl.unity `perf/673-unity-dense` `e5060d8`, 7000.0.0a20, 11 workers, KindShape pure domain, every hash equal to .NET, 0 B warm): 1.43-1.81x over main in the six owner cells, short of 2x.
   - **Encoding that keeps readers simple.** Store a dense row's `Playback.Tick` with the lazy-row encoding relative to ONE world clock (a component on the tick system entity, read through an `IncludeSystems` query), and keep 2-byte origins and dues separately for the kernels. Every reader then decodes with the existing `TimelineTicks.Real(slot, clock)`, and a library reload needs no old row space. A per-entity opt-in component kept rows whose readers take raw `Playback.Tick` exact by construction.
   - **Layout.** Inline 4-slot origin and due components (no buffer header) instead of one `DynamicBuffer` per row took the 1M x 2 split from tick 3.09 / Movement 2.86 to 2.42 / 2.38 ms; the buffer's header was a DRAM miss per due row.
-  - **Capacity.** `TimelineRequest` `[InternalBufferCapacity(4)]` was 112 of 315 chunk bytes per row and no job reads it per step. Capacity 0 plus `TrimExcess` after the drain took 51 -> 80 rows per chunk and the 1M x 2 split from 2.42 / 2.38 / 0.65 to 2.05 / 1.94 / 0.46 ms (tick / Movement / Vitals).
+  - **Capacity (corrected by a request-heavy cell, tl.unity `44bc146` + `a494f90`).** `TimelineRequest` `[InternalBufferCapacity(4)]` is 112 B of the pure row, and no job reads it per step. Capacity 0 took the pure row from 58 to 98 rows per chunk: about 10 % faster at 1M rows, and 1-4 % slower at 10k (same-session A B B A).
+    - **The trim churns.** Growth from capacity 0 jumps straight to an 8-element heap block (224 B for a 28 B element), and `TrimExcess` after the drain frees and re-allocates that block on every step a row gets a request. 1M x 2 with a request on every row each step ran 112.5 ms, against 12.8 ms at capacity 4. Warm GC allocation was 0 B in both: the churn is native malloc and free, and it shows only in step time.
+    - **Without the trim, every row that ever queued a request keeps the 224 B block.** 1M-row memory per row then went from 282.5 to 391.2 B, chunk plus heap.
+    - **Price a buffer-capacity change by chunk plus heap bytes, with a cell that requests every step.**
+  - **Price an archetype without editing the package.** Take a live entity's `GetChunk(e).Archetype.GetComponentTypes`. Swap in stand-in structs of the same size, for example an `[InternalBufferCapacity(0)]` element with `fixed byte Bytes[28]` in place of a 28 B buffer element. Then read `EntityManager.CreateArchetype(...).ChunkCapacity`.
+    - Put the script in a scratch probe's `Assets/`, with an asmdef that references the package's test assemblies by name and sets `defineConstraints: UNITY_INCLUDE_TESTS`.
+    - It reproduced the measured capacities exactly (58 / 98 / 80 rows).
   - **Lost.** A branch-free declared `Pick` (bitwise select on an 8-byte value) was slower in Burst too (50k x 40 Movement 1.24 -> 1.67 ms). Batching a word's due records before committing them was a wash.
   - **What remains.** At 1M x 2 `perf` of the measured loop gives `Fused` 32%, the due-row step 28%, the row scan 12% and the pulse jobs 10%. Pulse arrivals are about 4 of every 5 due events, each a 32 B lane item that a per-kind `IJobParallelFor` replays, and main pays the same.
+  - **Cost ladder.** Source: tl.unity `exp/673-port-costs` `4e77879`, `OriginCosts.cs`. Each level adds one of the port's costs to U1's kernel; the hash is equal at every level and equal to U1's `OriginBench`.
+    - **Costs added, ms per step:**
+      - pulses as dues (next-due, due scan, 32 B lane items, replay): +1.0-2.7;
+      - a branchy scalar Pick: +0.6-2.4;
+      - separate tick, Movement and Vitals walks: +0.5-1.1;
+      - per-row settle and enable checks: up to +0.9 at 2-4 slots;
+      - a second pulse kind as dues: +0.2-0.8;
+      - 128 -> 80 rows per chunk: up to +0.3.
+    - **One walk** reads the pulses as int lanes in the same AVX2 add as the floats and the Pick key, and keeps dues only for ends. At 1M x 2 / 1M x 4 / 50k x 40 / 50k x 100 it ran 2.6 / 3.1 / 0.83 / 1.9 ms. The port ran 4.4 / 5.9 / 2.1 / 4.0.
+    - **The same walk with the scalar Pick** ran 3.2 / 5.2 / 1.9 / 4.7. That is why the AVX2 key `max(prio << 8 | slot)` matters as much as removing pulse dues.
+    - **Read a ladder as a ranking.** Costs re-implemented in a bench overshoot tuned code: the ladder top was 1.7-4.0 ms above the real port.
 
