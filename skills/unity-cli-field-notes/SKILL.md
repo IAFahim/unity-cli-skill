@@ -236,6 +236,8 @@ One source bit-identical on .NET 10, the Unity 7 editor and Burst at any worker 
 
 - Linux Unity CLI beta 15 can trigger recurring Polkit password dialogs through `systemd-creds encrypt/decrypt --name=unity-auth-broker-seal`; identify them in `journalctl -t polkitd`, then try `UNITY_NO_AUTH_BROKER=1 unity auth status --format json` (verified successful without credential authorization events), which bypasses the broker for the OS credential store.
 - `unity-cli exec` (if used) caches compiled payloads: keep each payload short and check the output is yours.
+- A .NET 10 Native AOT `dotnet publish` with `TreatWarningsAsErrors` stops with `NU1903` when the SDK's bundled runtime is 10.0.12 (`Microsoft.DotNet.ILCompiler` 10.0.12, Brotli decoder advisory GHSA-p3jp-9v83-76w9, fixed in 10.0.14; the decoder is linked into the AOT binary). Do not suppress it: point `DOTNET_ROOT`/`PATH` at an SDK that bundles 10.0.14 or newer (mise had 11.0.100 beside the 10.0.401 in `~/.dotnet`) and republish; 0 warnings and a 7 MB single binary followed.
+- StateSmith `ss.cli run` exits **0** when a diagram fails to parse (`RunHandler` sets `Environment.ExitCode = 1`, then `Program.cs` overwrites it with its own 0; v0.22.2). Tools that gate a commit or push on it must read the output: `StateSmith Runner - Finished with failure.` or `Failed while trying to read diagram` means failure. Verified with an inline-colour diagram (`[*] --> A #brown`).
 - Read `Packages/manifest.json` and asmdef references before guessing a type's assembly. If a guessed API fails to compile once, open the source or compile a probe; don't guess twice.
 
 ## 7. Live Editor (official CLI), condensed
