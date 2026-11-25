@@ -51,6 +51,7 @@ ls <project>/Temp/UnityLockfile 2>/dev/null                 # exists = that proj
   - Capture with `import -window root -display :99 out.png`. Drive the Editor with real input: `xdotool mousemove X Y click 1`, `key a` (Timeline: frame all), `click 5` (scroll). `GenericMenu` dropdowns open as real popups you can capture.
   - Let the harness pause at marker files (wait until `go-<step>` exists) so you can look, click and capture between steps. Watch the log for each pause and for silence.
   - Do not run `pkill -f 'Xvfb :99'` from a tool shell: its own command line contains the pattern, so it kills itself. Kill by PID, or anchor the pattern with `^`.
+  - Guide screenshots (Xvfb without root, a file-polled harness, Timeline zoom, menus, floating windows, the crash dialog on `File/Exit`): `references/editor-screenshots-xvfb.md`.
 - **One Editor per project path, ever.** A second launch on the same path aborts ("another Unity instance is running"). Never kill an Editor you did not start; it is the person's.
 - **Never open a windowed Editor yourself.** You cannot see it and it waits for focus. Run headless: batch mode (section 2), or a resident `-batchmode` Editor you drive with the CLI (section 7).
 - Drive an Editor the person already has open (`unity command ...`) only when the task is about that Editor: its scene, its Inspector. Never enter Play mode in it, never focus its window and never capture its screen (see below).
